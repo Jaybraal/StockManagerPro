@@ -1,0 +1,17 @@
+node_modules/
+frontend/node_modules/
+backend/venv/
+backend/__pycache__/
+backend/build/
+backend/dist/
+backend/*.pyc
+backend/flask.log
+backend/cache/
+backend/instance/
+frontend/build/
+.git/
+*.zip
+*.log
+dist/
+build/
+StockManagerPro.zip
