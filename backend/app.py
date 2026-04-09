@@ -40,6 +40,13 @@ app.config.from_object(Config)
 db.init_app(app)
 migrate = Migrate(app, db)
 
+# Crear tablas y datos iniciales al arrancar
+with app.app_context():
+    try:
+        init_db(app)
+    except Exception as e:
+        print(f"[Backend] Advertencia init_db: {e}")
+
 # Inicializar JWT
 jwt = JWTManager(app)
 

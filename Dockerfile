@@ -29,4 +29,4 @@ COPY --from=frontend-build /app/frontend/build /app/frontend/build
 EXPOSE 8000
 
 # Start with gunicorn + gevent (required for Flask-SocketIO)
-CMD gunicorn --worker-class gevent -w 1 --bind 0.0.0.0:${PORT:-8000} --timeout 120 app:app
+CMD ["/bin/sh", "-c", "gunicorn --worker-class gevent -w 1 --bind 0.0.0.0:${PORT:-8000} --timeout 120 app:app"]
