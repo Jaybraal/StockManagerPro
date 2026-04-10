@@ -16,7 +16,13 @@ else:
 # Obtener la URI de la base de datos
 DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL no está definida. Configura tu archivo .env para usar PostgreSQL.")
+    # Fallback a SQLite para desarrollo local
+    DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'stockmanager_dev.db')}"
+    print("[Backend] DATABASE_URL no definida. Usando SQLite para desarrollo local.")
+else:
+    # Railway provisiona postgres:// pero SQLAlchemy requiere postgresql://
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 print(f"[Backend] SQLALCHEMY_DATABASE_URI: {DATABASE_URL}")
 
 from datetime import timedelta
