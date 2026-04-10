@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 
 /**
  * Hook personalizado para manejar conexiones WebSocket con Socket.IO
- * Proporciona notificaciones en tiempo real para facturas
+ * Proporciona notificaciones en tiempo real para stock y productos
  */
 export const useSocket = (tenantId, userRole, userId) => {
   const socketRef = useRef(null);
@@ -12,9 +12,6 @@ export const useSocket = (tenantId, userRole, userId) => {
 
   // Callbacks para eventos específicos
   const handlersRef = useRef({
-    onInvoiceRequest: null,
-    onInvoiceReady: null,
-    onInvoiceRejected: null,
     onProductUpdate: null,
     onStockAlert: null,
   });
@@ -61,51 +58,6 @@ export const useSocket = (tenantId, userRole, userId) => {
     // Confirmación de unión a sala
     socket.on('joined', (data) => {
       console.log('[WebSocket] Unido a sala:', data);
-    });
-
-    // Evento: Nueva solicitud de factura (para admin)
-    socket.on('invoice_request', (data) => {
-      console.log('[WebSocket] Nueva solicitud de factura:', data);
-      addNotification({
-        type: 'invoice_request',
-        title: 'Nueva solicitud de factura',
-        message: `Venta #${data.sale_id} solicita factura`,
-        data: data,
-        timestamp: new Date()
-      });
-      if (handlersRef.current.onInvoiceRequest) {
-        handlersRef.current.onInvoiceRequest(data);
-      }
-    });
-
-    // Evento: Factura lista (para cajero)
-    socket.on('invoice_ready', (data) => {
-      console.log('[WebSocket] Factura lista:', data);
-      addNotification({
-        type: 'invoice_ready',
-        title: 'Factura emitida',
-        message: `Factura #${data.sale_id} emitida con NCF: ${data.ncf}`,
-        data: data,
-        timestamp: new Date()
-      });
-      if (handlersRef.current.onInvoiceReady) {
-        handlersRef.current.onInvoiceReady(data);
-      }
-    });
-
-    // Evento: Factura rechazada (para cajero)
-    socket.on('invoice_rejected', (data) => {
-      console.log('[WebSocket] Factura rechazada:', data);
-      addNotification({
-        type: 'invoice_rejected',
-        title: 'Solicitud rechazada',
-        message: data.message || `Solicitud de factura #${data.sale_id} rechazada`,
-        data: data,
-        timestamp: new Date()
-      });
-      if (handlersRef.current.onInvoiceRejected) {
-        handlersRef.current.onInvoiceRejected(data);
-      }
     });
 
     // Evento: Actualización de producto

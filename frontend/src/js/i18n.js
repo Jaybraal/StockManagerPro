@@ -26,32 +26,18 @@ const resources = {
       'login.submit': 'Ingresar',
       'login.error': 'Usuario o contraseña incorrectos',
 
-      // POS
-      'pos.title': 'Punto de Venta',
-      'pos.cart': 'Carrito',
-      'pos.total': 'Total',
-      'pos.payment': 'Pago',
-      'pos.cash': 'Efectivo',
-      'pos.card': 'Tarjeta',
-      'pos.other': 'Otro',
-      'pos.change': 'Cambio',
-      'pos.receipt': 'Ticket',
-      'pos.fiscal': 'Factura',
-      'pos.print': 'Imprimir',
-      'pos.qr': 'QR',
-
       // Admin
       'admin.title': 'Panel de Administración',
       'admin.dashboard': 'Dashboard',
       'admin.products': 'Productos',
       'admin.categories': 'Categorías',
       'admin.users': 'Usuarios',
-      'admin.sales': 'Ventas',
       'admin.settings': 'Configuración',
       'admin.reports': 'Reportes',
       'admin.inventory': 'Inventario',
       'admin.import': 'Importar',
-      'admin.export': 'Exportar'
+      'admin.export': 'Exportar',
+      'admin.suppliers': 'Proveedores'
     }
   }
 };

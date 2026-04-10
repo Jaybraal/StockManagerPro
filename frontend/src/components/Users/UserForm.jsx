@@ -10,7 +10,7 @@ const UserForm = ({
 }) => {
   const [formData, setFormData] = useState({
     username: '',
-    role: 'cajero',
+    role: 'operador',
     email: '',
     active: true
   });
@@ -21,14 +21,14 @@ const UserForm = ({
       if (user) {
         setFormData({
           username: user.username || '',
-          role: user.role || 'cajero',
+          role: user.role || 'operador',
           email: user.email || '',
           active: user.active !== false
         });
       } else {
         setFormData({
           username: '',
-          role: 'cajero',
+          role: 'operador',
           email: '',
           active: true
         });
@@ -111,7 +111,7 @@ const UserForm = ({
             onChange={handleChange}
             className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
-            <option value="cajero">Cajero</option>
+            <option value="operador">Operador</option>
             <option value="administrador">Administrador</option>
           </select>
         </div>

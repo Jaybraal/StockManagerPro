@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ShoppingBag, User, Lock, UserCircle, Store } from 'lucide-react';
+import { Package, User, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 function Login() {
@@ -11,7 +11,7 @@ function Login() {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    role: 'cajero'
+    role: 'administrador'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -78,19 +78,11 @@ function Login() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('userRole', data.user.role);
       localStorage.setItem('adminTenantId', data.user.tenant_id);
-      localStorage.setItem('posTenantId', data.user.tenant_id);
 
-      if (data.user.role === 'administrador') {
-        loginContext('administrador');
-        localStorage.setItem('adminToken', data.token);
-        localStorage.setItem('adminRole', data.user.role);
-        navigate('/admin', { replace: true });
-      } else if (data.user.role === 'cajero') {
-        loginContext('cajero');
-        localStorage.setItem('cashierToken', data.token);
-        localStorage.setItem('cashierRole', data.user.role);
-        navigate('/pos', { replace: true });
-      }
+      loginContext('administrador');
+      localStorage.setItem('adminToken', data.token);
+      localStorage.setItem('adminRole', data.user.role);
+      navigate('/admin', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -117,37 +109,6 @@ function Login() {
           <img src="/logo192.png" alt="Logo" width={56} height={56} className="mx-auto mb-3" />
           <h1 className="text-[1.75rem] text-[#4361ee] font-bold mb-2">StockManagerPro</h1>
           <p className="text-[#666] text-sm">Ingresa tus credenciales para continuar</p>
-        </div>
-
-        <div className="flex border-b border-[#e0e0e0] bg-[#f8fafc]">
-          <button
-            onClick={() => setFormData(prev => ({ ...prev, role: 'cajero' }))}
-            className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all duration-300 relative ${
-              formData.role === 'cajero' 
-                ? 'bg-white text-[#4361ee]' 
-                : 'text-[#666]'
-            }`}
-          >
-            <Store className="w-5 h-5" strokeWidth={2} />
-            <span className="font-medium">Cajero</span>
-            {formData.role === 'cajero' && (
-              <div className="absolute bottom-0 left-1/4 w-1/2 h-[3px] bg-[#4361ee] rounded-t-md" />
-            )}
-          </button>
-          <button
-            onClick={() => setFormData(prev => ({ ...prev, role: 'administrador' }))}
-            className={`flex-1 py-4 flex items-center justify-center gap-2 transition-all duration-300 relative ${
-              formData.role === 'administrador' 
-                ? 'bg-white text-[#4361ee]' 
-                : 'text-[#666]'
-            }`}
-          >
-            <UserCircle className="w-5 h-5" strokeWidth={2} />
-            <span className="font-medium">Administrador</span>
-            {formData.role === 'administrador' && (
-              <div className="absolute bottom-0 left-1/4 w-1/2 h-[3px] bg-[#4361ee] rounded-t-md" />
-            )}
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-8">
@@ -205,7 +166,7 @@ function Login() {
               </>
             ) : (
               <>
-                <ShoppingBag className="w-5 h-5" strokeWidth={2} />
+                <Package className="w-5 h-5" strokeWidth={2} />
                 {t('login.submit')}
               </>
             )}
