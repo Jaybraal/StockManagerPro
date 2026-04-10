@@ -75,6 +75,7 @@ function Login() {
 
       // Guardar token y datos del usuario - guardar ambos tenant_ids para compatibilidad
       localStorage.setItem('username', data.user.username);
+      localStorage.setItem('userId', data.user.id);
       localStorage.setItem('token', data.token);
       localStorage.setItem('userRole', data.user.role);
       localStorage.setItem('adminTenantId', data.user.tenant_id);

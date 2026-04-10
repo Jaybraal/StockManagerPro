@@ -17,6 +17,8 @@ const Users = ({
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
+  const currentUserId = parseInt(localStorage.getItem('userId'));
+
   const handleEdit = (user) => {
     setEditingUser(user);
     setIsFormOpen(true);
@@ -96,12 +98,14 @@ const Users = ({
           >
             Editar
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDeleteUser(user.id); }}
-            className="px-3 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
-          >
-            Eliminar
-          </button>
+          {user.id !== currentUserId && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDeleteUser(user.id); }}
+              className="px-3 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+            >
+              Eliminar
+            </button>
+          )}
         </div>
       )
     }

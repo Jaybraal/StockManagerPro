@@ -58,6 +58,8 @@ class Product(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
     barcode = db.Column(db.String(100), nullable=True, index=True)
     name = db.Column(db.String(120), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    unit = db.Column(db.String(50), nullable=True)
     price = db.Column(db.Float, nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
     stock_minimo = db.Column(db.Integer, nullable=False, default=5)

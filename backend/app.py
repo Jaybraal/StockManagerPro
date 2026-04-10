@@ -418,6 +418,8 @@ def get_products(tenant_id):
                 products_data.append({
                     'id': p.id,
                     'name': p.name,
+                    'description': p.description,
+                    'unit': p.unit,
                     'price': float(p.price),
                     'stock': p.stock,
                     'stock_minimo': p.stock_minimo,
@@ -464,23 +466,22 @@ def create_product(tenant_id):
     name = data.get('name')
     price = data.get('price')
     stock = data.get('stock')
-    stock_minimo = data.get('stock_minimo', 5) # Valor por defecto 5
+    stock_minimo = data.get('stock_minimo', 5)
     category_id = data.get('category_id')
     unidadesPorEmpaque = data.get('unidadesPorEmpaque')
     costePorItem = data.get('costePorItem')
-    barcode = data.get('barcode') # Permitir código de barras opcional
+    barcode = data.get('barcode')
+    description = data.get('description')
+    unit = data.get('unit')
 
-    # Validación básica de datos
     if not name or price is None or stock is None or category_id is None:
         return jsonify({'message': 'Faltan campos obligatorios: nombre, precio, stock, category_id'}), 400
 
     try:
-        # Verificar si la categoría existe y pertenece al tenant
         category = Category.query.filter_by(id=category_id, tenant_id=tenant_id).first()
         if not category:
             return jsonify({'message': 'Categoría no encontrada para este tenant'}), 404
 
-        # Verificar si el código de barras ya existe para este tenant (si se proporciona)
         if barcode:
             existing_product_with_barcode = Product.query.filter_by(tenant_id=tenant_id, barcode=barcode).first()
             if existing_product_with_barcode:
@@ -489,6 +490,8 @@ def create_product(tenant_id):
         new_product = Product(
             tenant_id=tenant_id,
             name=name,
+            description=description or None,
+            unit=unit or None,
             price=float(price),
             stock=int(stock),
             stock_minimo=int(stock_minimo),
@@ -500,12 +503,13 @@ def create_product(tenant_id):
         db.session.add(new_product)
         db.session.commit()
 
-        # Devolver el producto creado (opcional, pero útil para el frontend)
         return jsonify({
             'message': 'Producto creado exitosamente',
             'product': {
                 'id': new_product.id,
                 'name': new_product.name,
+                'description': new_product.description,
+                'unit': new_product.unit,
                 'price': new_product.price,
                 'stock': new_product.stock,
                 'stock_minimo': new_product.stock_minimo,
@@ -583,7 +587,7 @@ def update_product(tenant_id, product_id):
     data = request.get_json()
 
     # Validar campos obligatorios (al menos uno para actualizar)
-    allowed_fields = ['name', 'price', 'stock', 'stock_minimo', 'category_id', 'unidadesPorEmpaque', 'costePorItem', 'barcode']
+    allowed_fields = ['name', 'description', 'unit', 'price', 'stock', 'stock_minimo', 'category_id', 'unidadesPorEmpaque', 'costePorItem', 'barcode']
     if not any(field in data for field in allowed_fields):
          return jsonify({'message': 'No se proporcionaron campos para actualizar'}), 400
 
@@ -948,6 +952,40 @@ def create_user(tenant_id):
     db.session.add(user)
     db.session.commit()
     return jsonify({'message': 'Usuario administrador creado exitosamente', 'generated_password': password}), 201
+
+@app.route('/api/users/<int:tenant_id>/<int:user_id>', methods=['PUT'])
+@jwt_required()
+def update_user(tenant_id, user_id):
+    current_user_id_str = get_jwt_identity()
+    try:
+        current_user_id = int(current_user_id_str)
+        current_user = db.session.get(User, current_user_id)
+    except (ValueError, TypeError):
+        return jsonify({"message": "Invalid user ID in token"}), 403
+
+    if not current_user or current_user.tenant_id != tenant_id or current_user.role != 'administrador':
+        return jsonify({'message': 'No autorizado'}), 403
+
+    user_to_update = User.query.filter_by(id=user_id, tenant_id=tenant_id).first()
+    if not user_to_update:
+        return jsonify({'message': 'Usuario no encontrado'}), 404
+
+    data = request.get_json()
+    if 'email' in data:
+        user_to_update.email = data['email'] or None
+    if 'role' in data and data['role'] in ('administrador', 'operador'):
+        # Prevent removing last admin
+        if user_to_update.role == 'administrador' and data['role'] != 'administrador':
+            admin_count = User.query.filter_by(tenant_id=tenant_id, role='administrador', active=True).count()
+            if admin_count <= 1:
+                return jsonify({'message': 'No puedes cambiar el rol del último administrador'}), 400
+        user_to_update.role = data['role']
+    if 'active' in data:
+        user_to_update.active = bool(data['active'])
+
+    db.session.commit()
+    return jsonify({'message': 'Usuario actualizado exitosamente'}), 200
+
 
 @app.route('/api/users/<int:tenant_id>/<int:user_id>/reset-password', methods=['POST'])
 @jwt_required()

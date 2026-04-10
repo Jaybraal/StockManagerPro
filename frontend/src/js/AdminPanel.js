@@ -103,13 +103,15 @@ export default function AdminPanel() {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
   };
 
+  const closeConfirm = () => setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+
   const handleDeleteProduct = (productId) => {
     showConfirm(
       'Eliminar Producto',
       '¿Estas seguro de que deseas eliminar este producto? Esta accion no se puede deshacer.',
       async () => {
-        await deleteProduct(productId);
-        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+        try { await deleteProduct(productId); } catch (_) {}
+        closeConfirm();
       }
     );
   };
@@ -119,8 +121,8 @@ export default function AdminPanel() {
       'Eliminar Categoria',
       '¿Estas seguro de que deseas eliminar esta categoria? Todos los productos asociados seran eliminados.',
       async () => {
-        await deleteCategory(categoryId);
-        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+        try { await deleteCategory(categoryId); } catch (_) {}
+        closeConfirm();
       }
     );
   };
@@ -130,8 +132,8 @@ export default function AdminPanel() {
       'Eliminar Usuario',
       '¿Estas seguro de que deseas eliminar este usuario?',
       async () => {
-        await deleteUser(userId);
-        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+        try { await deleteUser(userId); } catch (_) {}
+        closeConfirm();
       }
     );
   };
@@ -141,8 +143,8 @@ export default function AdminPanel() {
       'Eliminar Proveedor',
       '¿Estas seguro de que deseas eliminar este proveedor?',
       async () => {
-        await deleteSupplier(supplierId);
-        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null });
+        try { await deleteSupplier(supplierId); } catch (_) {}
+        closeConfirm();
       }
     );
   };
@@ -242,7 +244,7 @@ export default function AdminPanel() {
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: null })}
+        onClose={closeConfirm}
         onConfirm={confirmModal.onConfirm}
         title={confirmModal.title}
         message={confirmModal.message}
