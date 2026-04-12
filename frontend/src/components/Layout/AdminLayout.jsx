@@ -7,7 +7,7 @@ import Sidebar from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 
 const AdminLayout = ({ children, activeTab, setActiveTab }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -73,7 +73,7 @@ const AdminLayout = ({ children, activeTab, setActiveTab }) => {
         `}
       >
         {/* Mobile top bar */}
-        <div className="md:hidden sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3 shadow-sm">
+        <div className="md:hidden sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3 shadow-sm">
           <button
             onClick={toggleSidebar}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
