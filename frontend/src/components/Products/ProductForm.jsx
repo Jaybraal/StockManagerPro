@@ -157,7 +157,7 @@ const ProductForm = ({
         </div>
 
         {/* Categoría + Unidad */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Categoría *
@@ -195,7 +195,7 @@ const ProductForm = ({
         </div>
 
         {/* Precio venta + Costo */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Precio de venta *
@@ -239,13 +239,13 @@ const ProductForm = ({
         </div>
 
         {/* Stock + Stock Mínimo */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {field('Stock actual *', 'stock', 'number', { min: '0', placeholder: '0' })}
           {field('Stock mínimo *', 'stock_minimo', 'number', { min: '0', placeholder: '5' })}
         </div>
 
         {/* Unidades por empaque + Código de barras */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {field('Unidades por empaque', 'unidadesPorEmpaque', 'number', { min: '1', placeholder: 'Ej: 12' })}
           {field('Código de barras', 'barcode', 'text', { placeholder: 'Opcional' })}
         </div>

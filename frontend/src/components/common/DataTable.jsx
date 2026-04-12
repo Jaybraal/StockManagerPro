@@ -70,15 +70,39 @@ const DataTable = ({
               placeholder={searchPlaceholder}
               value={searchTerm}
               onChange={handleSearch}
-              className="w-full md:w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
         </div>
       )}
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Mobile card view */}
+      <div className="block sm:hidden space-y-3">
+        {paginatedData.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">{emptyMessage}</div>
+        ) : (
+          paginatedData.map((row, rowIndex) => (
+            <div
+              key={row.id || rowIndex}
+              onClick={() => onRowClick?.(row)}
+              className={`bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 ${onRowClick ? 'cursor-pointer active:bg-gray-100 dark:active:bg-gray-700' : ''}`}
+            >
+              {columns.map((col, colIndex) => (
+                <div key={colIndex} className="flex justify-between items-start gap-3 py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase shrink-0 pt-0.5">{col.header}</span>
+                  <span className="text-sm text-gray-900 dark:text-gray-100 text-right">
+                    {col.render ? col.render(row) : row[col.accessor]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
@@ -107,7 +131,7 @@ const DataTable = ({
                   className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
                 >
                   {columns.map((col, colIndex) => (
-                    <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                    <td key={colIndex} className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
                       {col.render ? col.render(row) : row[col.accessor]}
                     </td>
                   ))}
@@ -122,7 +146,7 @@ const DataTable = ({
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 px-2">
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            Mostrando {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredData.length)} de {filteredData.length}
+            {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredData.length)} de {filteredData.length}
           </span>
           <div className="flex items-center gap-2">
             <button
