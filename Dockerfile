@@ -3,9 +3,8 @@ FROM node:18-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci --silent
-# Cache bust: 2026-04-12-v2
 COPY frontend/ ./
-RUN npm run build
+RUN echo "cache-bust-$(date +%s)" && npm run build
 
 # Stage 2: Python backend
 FROM python:3.11-slim
