@@ -278,6 +278,42 @@ def get_csrf_token():
     return jsonify({'csrf_token': csrf_token}), 200
 
 
+# Endpoint de diagnóstico (sin auth) — solo para verificar el estado del superadmin
+@app.route('/api/setup-check', methods=['GET'])
+def setup_check():
+    sa = User.query.filter_by(role='superadmin').first()
+    tenants_count = Tenant.query.count()
+    users_count = User.query.count()
+    return jsonify({
+        'superadmin_exists': sa is not None,
+        'superadmin_username': sa.username if sa else None,
+        'tenants': tenants_count,
+        'users': users_count,
+    }), 200
+
+
+@app.route('/api/setup-init', methods=['POST'])
+def setup_init():
+    """Crea el superadmin si no existe. Solo funciona cuando no hay superadmin."""
+    if User.query.filter_by(role='superadmin').first():
+        return jsonify({'message': 'El superadmin ya existe'}), 400
+    tenant = Tenant.query.order_by(Tenant.id).first()
+    if not tenant:
+        return jsonify({'message': 'No hay tenants en la base de datos'}), 400
+    from werkzeug.security import generate_password_hash as _gph
+    sa = User(
+        username='superadmin',
+        password_hash=_gph('superadmin'),
+        role='superadmin',
+        tenant_id=tenant.id,
+        must_change_password=True,
+        active=True
+    )
+    db.session.add(sa)
+    db.session.commit()
+    return jsonify({'message': 'Superadmin creado', 'username': 'superadmin', 'password': 'superadmin'}), 201
+
+
 # Endpoint para verificar estado de autenticación
 @app.route('/api/auth/status', methods=['GET'])
 @jwt_required(optional=True)
