@@ -47,6 +47,33 @@ with app.app_context():
     except Exception as e:
         print(f"[Backend] Advertencia init_db: {e}")
 
+    # Crear superadmin si no existe — bloque separado para no fallar silenciosamente
+    try:
+        from werkzeug.security import generate_password_hash as _gph
+        if not User.query.filter_by(role='superadmin').first():
+            first_tenant = Tenant.query.order_by(Tenant.id).first()
+            if first_tenant:
+                from database import db as _db
+                sa = User(
+                    username='superadmin',
+                    password_hash=_gph('superadmin'),
+                    role='superadmin',
+                    tenant_id=first_tenant.id,
+                    must_change_password=True,
+                    active=True
+                )
+                _db.session.add(sa)
+                _db.session.commit()
+                print("[Startup] Superadmin creado: usuario='superadmin' pass='superadmin' — CÁMBIALA")
+            else:
+                print("[Startup] ADVERTENCIA: no hay tenants, superadmin no creado")
+        else:
+            print("[Startup] Superadmin ya existe, OK")
+    except Exception as e:
+        print(f"[Startup] ERROR creando superadmin: {e}")
+        import traceback as _tb
+        _tb.print_exc()
+
 # Inicializar JWT
 jwt = JWTManager(app)
 

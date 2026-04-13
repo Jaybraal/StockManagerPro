@@ -187,20 +187,6 @@ def init_db(app):
             db.session.add(admin)
             db.session.commit()
 
-        # Crear superadmin si no existe
-        if not User.query.filter_by(role='superadmin').first():
-            first_tenant = Tenant.query.order_by(Tenant.id).first()
-            superadmin = User(
-                username="superadmin",
-                password_hash=generate_password_hash("superadmin"),
-                role="superadmin",
-                tenant_id=first_tenant.id,
-                must_change_password=True,
-                active=True
-            )
-            db.session.add(superadmin)
-            db.session.commit()
-            print("[Init] Superadmin creado: usuario='superadmin' contraseña='superadmin' (CÁMBIALA)")
 
         demo_user = User.query.filter_by(username='demo').first()
         if demo_user and not demo_user.password_hash:
