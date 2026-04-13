@@ -52,8 +52,10 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('tenantId');
   };
 
+  const isSuperAdmin = role === 'superadmin' || (user && user.role === 'superadmin');
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, role, user, loading, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, role, user, loading, login, logout, isSuperAdmin }}>
       {children}
     </AuthContext.Provider>
   );

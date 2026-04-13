@@ -80,7 +80,7 @@ function Login() {
       localStorage.setItem('userRole', data.user.role);
       localStorage.setItem('adminTenantId', data.user.tenant_id);
 
-      loginContext('administrador');
+      loginContext(data.user.role, data.user);
       localStorage.setItem('adminToken', data.token);
       localStorage.setItem('adminRole', data.user.role);
       navigate('/admin', { replace: true });

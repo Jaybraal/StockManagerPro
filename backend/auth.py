@@ -95,6 +95,49 @@ def admin_required(f):
 
     return decorated
 
+def superadmin_required(f):
+    """Decorator para proteger rutas que requieren rol de superadmin"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            try:
+                token = auth_header.split(" ")[1]
+            except IndexError:
+                return jsonify({'message': 'Token inválido'}), 401
+
+        if not token:
+            return jsonify({'message': 'Token faltante'}), 401
+
+        payload = verify_token(token)
+        if not payload:
+            return jsonify({'message': 'Token inválido o expirado'}), 401
+
+        if payload['role'] != 'superadmin':
+            return jsonify({'message': 'Se requiere rol de superadmin'}), 403
+
+        user = User.query.get(payload['user_id'])
+        if not user:
+            return jsonify({'message': 'Usuario no encontrado'}), 401
+
+        request.user = user
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+def get_current_user_from_jwt():
+    """Helper: obtiene el usuario actual desde JWT usando flask-jwt-extended"""
+    from flask_jwt_extended import get_jwt_identity
+    try:
+        uid = int(get_jwt_identity())
+        return User.query.get(uid)
+    except (ValueError, TypeError):
+        return None
+
+
 def tenant_required(f):
     """Decorator para verificar que el usuario pertenece al tenant correcto"""
     @wraps(f)

@@ -24,7 +24,18 @@ const apiCall = async (url, options = {}) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+    // flask-jwt-extended usa "msg", otros usan "message"
+    const msg = errorData.message || errorData.msg || `Error ${response.status}`;
+
+    if (response.status === 401) {
+      // Sesión expirada → limpiar y redirigir al login
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminTenantId');
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+
+    throw new Error(msg);
   }
 
   return response.json();
@@ -112,18 +123,16 @@ export const suppliersApi = {
 
   delete: (supplierId) => apiCall(`/api/suppliers/${getTenantId()}/${supplierId}`, {
     method: 'DELETE'
-  }),
+  })
+};
 
-  getInvoices: (supplierId) => apiCall(`/api/suppliers/${supplierId}/invoices`),
+// Movements API
+export const movementsApi = {
+  getAll: (limit = 50) => apiCall(`/api/movements/${getTenantId()}?limit=${limit}`),
 
-  createInvoice: (supplierId, invoiceData) => apiCall(`/api/suppliers/${supplierId}/invoices`, {
+  create: (movementData) => apiCall(`/api/movements/${getTenantId()}`, {
     method: 'POST',
-    body: JSON.stringify(invoiceData)
-  }),
-
-  addPayment: (supplierId, invoiceId, amount) => apiCall(`/api/suppliers/${supplierId}/invoices/${invoiceId}/payments`, {
-    method: 'POST',
-    body: JSON.stringify({ amount })
+    body: JSON.stringify(movementData)
   })
 };
 
@@ -200,6 +209,27 @@ export const reportsApi = {
   }
 };
 
+// Tenants API (superadmin only)
+export const tenantsApi = {
+  getAll: () => apiCall('/api/tenants'),
+
+  create: (data) => apiCall('/api/tenants', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  delete: (tenantId) => apiCall(`/api/tenants/${tenantId}`, {
+    method: 'DELETE'
+  }),
+
+  getAllUsers: () => apiCall('/api/users/all'),
+
+  createUserInTenant: (tenantId, userData) => apiCall(`/api/users/${tenantId}`, {
+    method: 'POST',
+    body: JSON.stringify(userData)
+  }),
+};
+
 export default {
   products: productsApi,
   categories: categoriesApi,
@@ -208,5 +238,6 @@ export default {
   config: configApi,
   notifications: notificationsApi,
   dashboard: dashboardApi,
-  reports: reportsApi
+  reports: reportsApi,
+  tenants: tenantsApi
 };

@@ -4,7 +4,7 @@ try:
     from flask import Flask, request, jsonify, send_from_directory, send_file
     print("[Backend] Flask importado correctamente")
     from flask_cors import CORS
-    from database import db, init_db, User, Product, Tenant, Category, TokenBlocklist, Supplier, Purchase, PurchaseItem, PurchaseInvoice, PurchaseInvoicePayment, Notification
+    from database import db, init_db, User, Product, Tenant, Category, TokenBlocklist, Supplier, Notification, StockMovement
     from auth import token_required, admin_required, tenant_required, generate_token
     import json
     import os
@@ -160,10 +160,14 @@ def login():
     password = data.get('password')
     role = data.get('role')
 
-    if not username or not password or not role:
-        return jsonify({"message": "Faltan usuario, contraseña o rol"}), 400
+    if not username or not password:
+        return jsonify({"message": "Faltan usuario o contraseña"}), 400
 
-    user = User.query.filter_by(username=username, role=role).first()
+    # Buscar usuario solo por username (role es opcional / ignorado si no se envía)
+    user = User.query.filter_by(username=username).first()
+    # Compatibilidad: si se envía role, verificar que coincida (excepto superadmin que siempre pasa)
+    if user and role and user.role != 'superadmin' and user.role != role:
+        user = None
 
     # Si el usuario demo intenta loguearse y es el único admin activo, forzar creación de admin real
     if user and user.username == 'demo' and user.role == 'administrador' and user.active:
@@ -271,6 +275,121 @@ def auth_status():
             pass
 
     return jsonify({'authenticated': False}), 200
+
+
+# ─── TENANTS (solo superadmin) ────────────────────────────────────────────────
+
+@app.route('/api/tenants', methods=['GET'])
+@jwt_required()
+def get_tenants():
+    try:
+        uid = int(get_jwt_identity())
+        current_user = db.session.get(User, uid)
+    except (ValueError, TypeError):
+        return jsonify({'message': 'Token inválido'}), 403
+
+    if not current_user or current_user.role != 'superadmin':
+        return jsonify({'message': 'Se requiere rol de superadmin'}), 403
+
+    tenants = Tenant.query.order_by(Tenant.id).all()
+    result = []
+    for t in tenants:
+        admin = User.query.filter_by(tenant_id=t.id, role='administrador', active=True).first()
+        user_count = User.query.filter_by(tenant_id=t.id).count()
+        cfg = t.config if isinstance(t.config, dict) else {}
+        result.append({
+            'id': t.id,
+            'name': t.name,
+            'display_name': cfg.get('name', t.name),
+            'currency': cfg.get('currency', 'DOP'),
+            'admin_username': admin.username if admin else None,
+            'user_count': user_count,
+        })
+    return jsonify(result), 200
+
+
+@app.route('/api/tenants', methods=['POST'])
+@jwt_required()
+def create_tenant():
+    try:
+        uid = int(get_jwt_identity())
+        current_user = db.session.get(User, uid)
+    except (ValueError, TypeError):
+        return jsonify({'message': 'Token inválido'}), 403
+
+    if not current_user or current_user.role != 'superadmin':
+        return jsonify({'message': 'Se requiere rol de superadmin'}), 403
+
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    admin_username = data.get('admin_username', '').strip()
+    admin_password = data.get('admin_password', '').strip()
+    currency = data.get('currency', 'DOP').strip()
+
+    if not name or not admin_username:
+        return jsonify({'message': 'El nombre del negocio y usuario admin son obligatorios'}), 400
+
+    if User.query.filter_by(username=admin_username).first():
+        return jsonify({'message': f'El usuario "{admin_username}" ya existe'}), 400
+
+    tenant = Tenant(
+        name=name,
+        config={'name': name, 'currency': currency, 'address': ''}
+    )
+    db.session.add(tenant)
+    db.session.flush()  # obtener tenant.id sin commit
+
+    password = admin_password or secrets.token_hex(4)
+    admin = User(
+        username=admin_username,
+        role='administrador',
+        tenant_id=tenant.id,
+        active=True,
+        must_change_password=True
+    )
+    admin.set_password(password)
+    db.session.add(admin)
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Negocio creado exitosamente',
+        'tenant': {'id': tenant.id, 'name': tenant.name},
+        'admin_username': admin_username,
+        'generated_password': password
+    }), 201
+
+
+@app.route('/api/tenants/<int:tenant_id>', methods=['DELETE'])
+@jwt_required()
+def delete_tenant(tenant_id):
+    try:
+        uid = int(get_jwt_identity())
+        current_user = db.session.get(User, uid)
+    except (ValueError, TypeError):
+        return jsonify({'message': 'Token inválido'}), 403
+
+    if not current_user or current_user.role != 'superadmin':
+        return jsonify({'message': 'Se requiere rol de superadmin'}), 403
+
+    tenant = db.session.get(Tenant, tenant_id)
+    if not tenant:
+        return jsonify({'message': 'Negocio no encontrado'}), 404
+
+    # Proteger el tenant propio del superadmin
+    if current_user.tenant_id == tenant_id:
+        return jsonify({'message': 'No puedes eliminar tu propio negocio'}), 400
+
+    # Eliminar todos los usuarios y productos del tenant primero
+    User.query.filter_by(tenant_id=tenant_id).delete()
+    Product.query.filter_by(tenant_id=tenant_id).delete()
+    Category.query.filter_by(tenant_id=tenant_id).delete()
+    db.session.delete(tenant)
+    db.session.commit()
+
+    return jsonify({'message': 'Negocio eliminado exitosamente'}), 200
+
+
+# ─── FIN TENANTS ──────────────────────────────────────────────────────────────
 
 
 @app.route('/api/categories/<int:tenant_id>', methods=['GET'])
@@ -849,6 +968,33 @@ def update_config(tenant_id):
 
     return jsonify({'message': 'Configuración actualizada', 'config': response_config}), 200
 
+@app.route('/api/users/all', methods=['GET'])
+@jwt_required()
+def get_all_users():
+    """Solo superadmin: retorna usuarios de todos los tenants"""
+    try:
+        uid = int(get_jwt_identity())
+        current_user = db.session.get(User, uid)
+    except (ValueError, TypeError):
+        return jsonify({'message': 'Token inválido'}), 403
+
+    if not current_user or current_user.role != 'superadmin':
+        return jsonify({'message': 'Se requiere rol de superadmin'}), 403
+
+    tenants_map = {t.id: t.name for t in Tenant.query.all()}
+    users = User.query.filter(User.role != 'superadmin').all()
+    return jsonify([{
+        'id': u.id,
+        'username': u.username,
+        'role': u.role,
+        'active': u.active,
+        'tenant_id': u.tenant_id,
+        'tenant_name': tenants_map.get(u.tenant_id, '?'),
+        'last_login': u.last_login.isoformat() if u.last_login else None,
+        'created_at': u.created_at.isoformat() if u.created_at else None,
+    } for u in users]), 200
+
+
 @app.route('/api/users/<int:tenant_id>', methods=['GET'])
 @jwt_required()
 def get_users(tenant_id):
@@ -866,8 +1012,8 @@ def get_users(tenant_id):
     if not current_user:
         return jsonify({"message": "User specified in token not found"}), 404
 
-    # Verificar si el usuario pertenece al tenant
-    if current_user.tenant_id != tenant_id:
+    # Superadmin puede ver cualquier tenant; admin solo el suyo
+    if current_user.role != 'superadmin' and current_user.tenant_id != tenant_id:
         return jsonify({'message': 'No autorizado para acceder a este tenant'}), 403
 
     try:
@@ -879,6 +1025,7 @@ def get_users(tenant_id):
                 'username': user.username,
                 'role': user.role,
                 'active': user.active,
+                'tenant_id': user.tenant_id,
                 'last_login': user.last_login.isoformat() if user.last_login else None,
                 'created_at': user.created_at.isoformat() if user.created_at else None
             })
@@ -892,66 +1039,62 @@ def generate_random_password(length=5):
     return ''.join(secrets.choice(digits) for _ in range(length))
 
 @app.route('/api/users/<int:tenant_id>', methods=['POST'])
+@jwt_required(optional=True)
 def create_user(tenant_id):
-    # Verificar si ya existe un administrador activo para este tenant
-    admin_exists = User.query.filter_by(tenant_id=tenant_id, role='administrador', active=True).first() is not None
-    
-    if admin_exists:
-        # Si ya existe un admin, exigir autenticación como antes
-        from flask_jwt_extended import jwt_required, get_jwt_identity
-        @jwt_required()
-        def inner_create_user(tenant_id=tenant_id):
-            current_user_id_str = get_jwt_identity()
-            try:
-                current_user_id = int(current_user_id_str)
-                current_user = db.session.get(User, current_user_id)
-            except (ValueError, TypeError):
-                return jsonify({"message": "Invalid user ID in token"}), 403
+    current_user = None
+    try:
+        uid_str = get_jwt_identity()
+        if uid_str:
+            current_user = db.session.get(User, int(uid_str))
+    except (ValueError, TypeError):
+        pass
+
+    # Superadmin puede crear usuarios en cualquier tenant sin restricción de tenant
+    if current_user and current_user.role == 'superadmin':
+        pass  # autorizado
+    else:
+        # Verificar si ya existe un administrador activo para este tenant
+        admin_exists = User.query.filter_by(tenant_id=tenant_id, role='administrador', active=True).first() is not None
+
+        if admin_exists:
             if not current_user:
-                return jsonify({"message": "User specified in token not found"}), 404
-            # Solo admin puede crear usuarios
+                return jsonify({'message': 'Token requerido'}), 401
             if current_user.tenant_id != tenant_id or current_user.role != 'administrador':
                 return jsonify({'message': 'No autorizado para crear usuarios'}), 403
-            data = request.get_json()
-            username = data.get('username')
-            role = data.get('role')
-            password = data.get('password', 'changeme')
-            if not username or not role:
-                return jsonify({'message': 'Faltan datos obligatorios'}), 400
-            if User.query.filter_by(username=username, tenant_id=tenant_id).first():
-                return jsonify({'message': 'El nombre de usuario ya existe'}), 400
-            user = User(username=username, role=role, tenant_id=tenant_id)
-            user.set_password(password)
-            user.active = True
-            user.must_change_password = True
-            db.session.add(user)
-            db.session.commit()
-            # Si se acaba de crear el primer admin real, desactivar demo
-            if role == 'administrador':
-                demo_user = User.query.filter_by(username='demo', tenant_id=tenant_id, role='administrador').first()
-                if demo_user and demo_user.active:
-                    demo_user.active = False
-                    db.session.commit()
-            return jsonify({'message': 'Usuario creado exitosamente', 'generated_password': password}), 201
-        return inner_create_user()
-    # Si NO existe admin, permitir crear el primer admin sin autenticación
+        else:
+            # Sin admin aún: solo se puede crear el primer admin sin autenticación
+            pass
+
     data = request.get_json()
     username = data.get('username')
     role = data.get('role')
     password = data.get('password', 'changeme')
+
     if not username or not role:
         return jsonify({'message': 'Faltan datos obligatorios'}), 400
-    if role != 'administrador':
-        return jsonify({'message': 'El primer usuario debe ser administrador'}), 400
-    if User.query.filter_by(username=username, tenant_id=tenant_id).first():
+
+    # No permitir crear otro superadmin desde esta ruta
+    if role == 'superadmin':
+        return jsonify({'message': 'No se puede asignar el rol superadmin desde aquí'}), 403
+
+    if User.query.filter_by(username=username).first():
         return jsonify({'message': 'El nombre de usuario ya existe'}), 400
+
     user = User(username=username, role=role, tenant_id=tenant_id)
     user.set_password(password)
     user.active = True
     user.must_change_password = True
     db.session.add(user)
     db.session.commit()
-    return jsonify({'message': 'Usuario administrador creado exitosamente', 'generated_password': password}), 201
+
+    # Si se creó el primer admin real, desactivar demo
+    if role == 'administrador':
+        demo_user = User.query.filter_by(username='demo', tenant_id=tenant_id, role='administrador').first()
+        if demo_user and demo_user.active:
+            demo_user.active = False
+            db.session.commit()
+
+    return jsonify({'message': 'Usuario creado exitosamente', 'generated_password': password}), 201
 
 @app.route('/api/users/<int:tenant_id>/<int:user_id>', methods=['PUT'])
 @jwt_required()
@@ -963,7 +1106,8 @@ def update_user(tenant_id, user_id):
     except (ValueError, TypeError):
         return jsonify({"message": "Invalid user ID in token"}), 403
 
-    if not current_user or current_user.tenant_id != tenant_id or current_user.role != 'administrador':
+    is_superadmin = current_user and current_user.role == 'superadmin'
+    if not is_superadmin and (not current_user or current_user.tenant_id != tenant_id or current_user.role != 'administrador'):
         return jsonify({'message': 'No autorizado'}), 403
 
     user_to_update = User.query.filter_by(id=user_id, tenant_id=tenant_id).first()
@@ -1089,13 +1233,20 @@ def delete_user(tenant_id, user_id):
     if not current_user:
         return jsonify({"message": "User specified in token not found"}), 404
 
-    # Verificar si el usuario actual es administrador y pertenece al tenant correcto
-    if current_user.tenant_id != tenant_id or current_user.role != 'administrador':
+    is_superadmin = current_user and current_user.role == 'superadmin'
+    if not is_superadmin and (current_user.tenant_id != tenant_id or current_user.role != 'administrador'):
         return jsonify({'message': 'No autorizado para eliminar usuarios'}), 403
 
-    # No permitir que un administrador se elimine a sí mismo
+    # No permitir eliminar al propio usuario
     if current_user_id == user_id:
         return jsonify({'message': 'No puedes eliminar tu propio usuario.'}), 400
+
+    # No permitir eliminar al superadmin
+    if is_superadmin is False:
+        pass  # admin normal, continua
+    user_to_delete = User.query.filter_by(id=user_id, tenant_id=tenant_id).first()
+    if user_to_delete and user_to_delete.role == 'superadmin':
+        return jsonify({'message': 'No se puede eliminar al superadmin.'}), 403
 
     user_to_delete = User.query.filter_by(id=user_id, tenant_id=tenant_id).first()
     if not user_to_delete:
@@ -1424,169 +1575,81 @@ def delete_supplier(tenant_id, supplier_id):
     db.session.commit()
     return jsonify({'message': 'Proveedor eliminado'}), 200
 
-# --- Endpoints para Compras (Facturas de Proveedor) ---
-@app.route('/api/suppliers/<int:supplier_id>/purchases', methods=['GET'])
+# --- Movimientos de Stock ---
+@app.route('/api/movements/<int:tenant_id>', methods=['GET'])
 @jwt_required()
-def get_purchases_for_supplier(supplier_id):
-    purchases = Purchase.query.filter_by(supplier_id=supplier_id).all()
-    return jsonify([{
-        'id': p.id,
-        'date': p.date.isoformat(),
-        'total_amount': p.total_amount,
-        'notes': p.notes
-    } for p in purchases]), 200
+def get_movements(tenant_id):
+    current_user_id = int(get_jwt_identity())
+    current_user = db.session.get(User, current_user_id)
+    if not current_user or current_user.tenant_id != tenant_id:
+        return jsonify({'message': 'No autorizado'}), 403
+    limit = request.args.get('limit', 50, type=int)
+    movements = StockMovement.query.filter_by(tenant_id=tenant_id)\
+        .order_by(StockMovement.created_at.desc())\
+        .limit(limit).all()
+    return jsonify([m.to_dict() for m in movements]), 200
 
-@app.route('/api/suppliers/<int:supplier_id>/purchases', methods=['POST'])
+@app.route('/api/movements/<int:tenant_id>', methods=['POST'])
 @jwt_required()
-def create_purchase_for_supplier(supplier_id):
+def create_movement(tenant_id):
+    current_user_id = int(get_jwt_identity())
+    current_user = db.session.get(User, current_user_id)
+    if not current_user or current_user.tenant_id != tenant_id:
+        return jsonify({'message': 'No autorizado'}), 403
+
     data = request.get_json()
-    tenant_id = data.get('tenant_id')
-    total_amount = data.get('total_amount')
-    notes = data.get('notes')
-    items = data.get('items', [])
-    purchase = Purchase(
+    product_id = data.get('product_id')
+    movement_type = data.get('type')
+    quantity = data.get('quantity')
+    reason = data.get('reason', '')
+
+    if movement_type not in ('entrada', 'salida', 'ajuste'):
+        return jsonify({'message': 'Tipo de movimiento inválido'}), 400
+    if not isinstance(quantity, int) or quantity <= 0:
+        return jsonify({'message': 'Cantidad debe ser un entero positivo'}), 400
+
+    product = Product.query.filter_by(id=product_id, tenant_id=tenant_id).first()
+    if not product:
+        return jsonify({'message': 'Producto no encontrado'}), 404
+
+    stock_before = product.stock
+
+    if movement_type == 'entrada':
+        product.stock += quantity
+    elif movement_type == 'salida':
+        if product.stock < quantity:
+            return jsonify({'message': f'Stock insuficiente. Disponible: {product.stock}'}), 400
+        product.stock -= quantity
+    else:  # ajuste
+        product.stock = quantity
+
+    stock_after = product.stock
+
+    movement = StockMovement(
         tenant_id=tenant_id,
-        supplier_id=supplier_id,
-        total_amount=total_amount,
-        notes=notes
+        product_id=product_id,
+        user_id=current_user_id,
+        type=movement_type,
+        quantity=quantity,
+        reason=reason,
+        stock_before=stock_before,
+        stock_after=stock_after
     )
-    db.session.add(purchase)
-    db.session.flush()  # Para obtener el ID antes de agregar items
-    for item in items:
-        purchase_item = PurchaseItem(
-            purchase_id=purchase.id,
-            product_id=item['product_id'],
-            quantity=item['quantity'],
-            price=item['price']
-        )
-        db.session.add(purchase_item)
+    db.session.add(movement)
     db.session.commit()
-    return jsonify({'id': purchase.id}), 201
 
-@app.route('/api/purchases/<int:purchase_id>', methods=['GET'])
-@jwt_required()
-def get_purchase(purchase_id):
-    purchase = Purchase.query.get_or_404(purchase_id)
-    items = [{
-        'id': item.id,
-        'product_id': item.product_id,
-        'quantity': item.quantity,
-        'price': item.price
-    } for item in purchase.items]
+    if product.stock <= product.stock_minimo:
+        socketio.emit('low_stock_alert', {
+            'product_id': product.id,
+            'product_name': product.name,
+            'stock': product.stock,
+            'stock_minimo': product.stock_minimo
+        }, room=str(tenant_id))
+
     return jsonify({
-        'id': purchase.id,
-        'supplier_id': purchase.supplier_id,
-        'date': purchase.date.isoformat(),
-        'total_amount': purchase.total_amount,
-        'notes': purchase.notes,
-        'items': items
-    }), 200
-
-# --- Endpoints para Facturas de Compra (PurchaseInvoice) ---
-@app.route('/api/suppliers/<int:supplier_id>/invoices', methods=['GET'])
-@jwt_required()
-def get_supplier_invoices(supplier_id):
-    invoices = PurchaseInvoice.query.filter_by(supplier_id=supplier_id).all()
-    return jsonify([inv.to_dict() for inv in invoices]), 200
-
-@app.route('/api/suppliers/<int:supplier_id>/invoices', methods=['POST'])
-@jwt_required()
-def create_supplier_invoice(supplier_id):
-    data = request.get_json()
-    invoice = PurchaseInvoice(
-        supplier_id=supplier_id,
-        tenant_id=data.get('tenant_id'),
-        date=datetime.fromisoformat(data.get('date')) if data.get('date') else datetime.now(timezone.utc),
-        total_amount=data.get('total_amount'),
-        status=data.get('status', 'pending'),
-        notes=data.get('notes')
-    )
-    db.session.add(invoice)
-    db.session.commit()
-    return jsonify(invoice.to_dict()), 201
-
-# --- Endpoints para pagos de facturas de compra ---
-@app.route('/api/purchase-invoices/<int:invoice_id>/payments', methods=['GET'])
-@jwt_required()
-def get_invoice_payments(invoice_id):
-    current_user_id_str = get_jwt_identity()
-
-    try:
-        current_user_id = int(current_user_id_str)
-        current_user = db.session.get(User, current_user_id)
-    except (ValueError, TypeError):
-        return jsonify({"message": "Invalid user ID in token"}), 403
-
-    if not current_user:
-        return jsonify({"message": "User specified in token not found"}), 404
-
-    # Verificar que la factura existe y pertenece al tenant del usuario
-    invoice = PurchaseInvoice.query.get(invoice_id)
-    if not invoice:
-        return jsonify({'message': 'Factura no encontrada'}), 404
-
-    if invoice.tenant_id != current_user.tenant_id:
-        return jsonify({'message': 'No autorizado para acceder a esta factura'}), 403
-
-    payments = PurchaseInvoicePayment.query.filter_by(invoice_id=invoice_id).all()
-    return jsonify([p.to_dict() for p in payments]), 200
-
-@app.route('/api/purchase-invoices/<int:invoice_id>/payments', methods=['POST'])
-@jwt_required()
-def add_invoice_payment(invoice_id):
-    current_user_id_str = get_jwt_identity()
-
-    try:
-        current_user_id = int(current_user_id_str)
-        current_user = db.session.get(User, current_user_id)
-    except (ValueError, TypeError):
-        return jsonify({"message": "Invalid user ID in token"}), 403
-
-    if not current_user:
-        return jsonify({"message": "User specified in token not found"}), 404
-
-    # Verificar que la factura existe y pertenece al tenant del usuario
-    invoice = PurchaseInvoice.query.get(invoice_id)
-    if not invoice:
-        return jsonify({'message': 'Factura no encontrada'}), 404
-
-    if invoice.tenant_id != current_user.tenant_id:
-        return jsonify({'message': 'No autorizado para acceder a esta factura'}), 403
-
-    data = request.get_json()
-    amount = data.get('amount')
-    notes = data.get('notes')
-
-    if amount is None:
-        return jsonify({'message': 'El monto es requerido'}), 400
-
-    if amount <= 0:
-        return jsonify({'message': 'El monto debe ser mayor que 0'}), 400
-
-    # Calcular el saldo pendiente
-    total_paid = sum(p.amount for p in invoice.payments)
-    remaining = invoice.total_amount - total_paid
-
-    if amount > remaining:
-        return jsonify({
-            'message': f'El monto ({amount}) excede el saldo pendiente ({remaining})',
-            'remaining': remaining
-        }), 400
-
-    payment = PurchaseInvoicePayment(
-        invoice_id=invoice_id,
-        amount=amount,
-        notes=notes
-    )
-    db.session.add(payment)
-
-    # Actualizar estado de la factura si está completamente pagada
-    new_total_paid = total_paid + amount
-    if new_total_paid >= invoice.total_amount:
-        invoice.status = 'paid'
-
-    db.session.commit()
-    return jsonify(payment.to_dict()), 201
+        'movement': movement.to_dict(),
+        'product_stock': product.stock
+    }), 201
 
 # Mantener el bloque principal de ejecución aquí
 if __name__ == '__main__':

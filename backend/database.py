@@ -130,69 +130,33 @@ class Supplier(db.Model):
             'notes': self.notes
         }
 
-class Purchase(db.Model):
-    __tablename__ = 'purchases'
+class StockMovement(db.Model):
+    __tablename__ = 'stock_movements'
     id = db.Column(db.Integer, primary_key=True)
-    tenant_id = db.Column(db.Integer, nullable=False)
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=False)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    total_amount = db.Column(db.Float, nullable=False)
-    notes = db.Column(db.Text)
-
-    supplier = db.relationship('Supplier', backref='purchases')
-    items = db.relationship('PurchaseItem', back_populates='purchase', lazy=True)
-
-class PurchaseItem(db.Model):
-    __tablename__ = 'purchase_items'
-    id = db.Column(db.Integer, primary_key=True)
-    purchase_id = db.Column(db.Integer, db.ForeignKey('purchases.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    type = db.Column(db.String(20), nullable=False)  # entrada, salida, ajuste
     quantity = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Float, nullable=False)
+    reason = db.Column(db.String(100), nullable=True)
+    stock_before = db.Column(db.Integer, nullable=False)
+    stock_after = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
-    purchase = db.relationship('Purchase', back_populates='items')
-    product = db.relationship('Product')
-
-class PurchaseInvoice(db.Model):
-    __tablename__ = 'purchase_invoices'
-    id = db.Column(db.Integer, primary_key=True)
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=False)
-    tenant_id = db.Column(db.Integer, nullable=False)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    total_amount = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(20), default='pending')
-    notes = db.Column(db.Text)
-
-    supplier = db.relationship('Supplier', backref='purchase_invoices')
-    payments = db.relationship('PurchaseInvoicePayment', backref='invoice', lazy=True)
+    product = db.relationship('Product', backref='movements')
+    user = db.relationship('User', backref='stock_movements')
 
     def to_dict(self):
         return {
             'id': self.id,
-            'supplier_id': self.supplier_id,
-            'tenant_id': self.tenant_id,
-            'date': self.date.isoformat() if self.date else None,
-            'total_amount': self.total_amount,
-            'status': self.status,
-            'notes': self.notes,
-            'payments': [p.to_dict() for p in self.payments]
-        }
-
-class PurchaseInvoicePayment(db.Model):
-    __tablename__ = 'purchase_invoice_payments'
-    id = db.Column(db.Integer, primary_key=True)
-    invoice_id = db.Column(db.Integer, db.ForeignKey('purchase_invoices.id'), nullable=False)
-    amount = db.Column(db.Float, nullable=False)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    notes = db.Column(db.Text)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'invoice_id': self.invoice_id,
-            'amount': self.amount,
-            'date': self.date.isoformat() if self.date else None,
-            'notes': self.notes
+            'product_id': self.product_id,
+            'product_name': self.product.name if self.product else None,
+            'type': self.type,
+            'quantity': self.quantity,
+            'reason': self.reason,
+            'stock_before': self.stock_before,
+            'stock_after': self.stock_after,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 # --- Inicialización de la Base de Datos ---
@@ -222,6 +186,21 @@ def init_db(app):
             )
             db.session.add(admin)
             db.session.commit()
+
+        # Crear superadmin si no existe
+        if not User.query.filter_by(role='superadmin').first():
+            first_tenant = Tenant.query.order_by(Tenant.id).first()
+            superadmin = User(
+                username="superadmin",
+                password_hash=generate_password_hash("superadmin"),
+                role="superadmin",
+                tenant_id=first_tenant.id,
+                must_change_password=True,
+                active=True
+            )
+            db.session.add(superadmin)
+            db.session.commit()
+            print("[Init] Superadmin creado: usuario='superadmin' contraseña='superadmin' (CÁMBIALA)")
 
         demo_user = User.query.filter_by(username='demo').first()
         if demo_user and not demo_user.password_hash:

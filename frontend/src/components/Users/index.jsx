@@ -10,7 +10,9 @@ const Users = ({
   onAddUser,
   onEditUser,
   onDeleteUser,
-  onResetPassword
+  onResetPassword,
+  isSuperAdmin = false,
+  tenants = [],
 }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -36,7 +38,6 @@ const Users = ({
         result = await onEditUser(editingUser.id, userData);
       } else {
         result = await onAddUser(userData);
-        // Show generated password if returned
         if (result?.generated_password) {
           setGeneratedPassword(result.generated_password);
           setShowPasswordModal(true);
@@ -49,9 +50,20 @@ const Users = ({
     }
   };
 
+  // Mapa tenant_id → nombre para mostrar en tabla (superadmin)
+  const tenantMap = Object.fromEntries(tenants.map(t => [t.id, t.display_name || t.name]));
+
   const columns = [
     { header: 'ID', accessor: 'id' },
     { header: 'Usuario', accessor: 'username' },
+    ...(isSuperAdmin ? [{
+      header: 'Negocio',
+      render: (user) => (
+        <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+          {tenantMap[user.tenant_id] || `#${user.tenant_id}`}
+        </span>
+      )
+    }] : []),
     {
       header: 'Email',
       render: (user) => user.email || '-'
@@ -146,6 +158,8 @@ const Users = ({
         onClose={() => { setIsFormOpen(false); setEditingUser(null); }}
         onSave={handleSave}
         user={editingUser}
+        isSuperAdmin={isSuperAdmin}
+        tenants={tenants}
       />
 
       {/* Generated Password Modal */}
