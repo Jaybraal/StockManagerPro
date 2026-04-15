@@ -44,6 +44,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, isOpen, onToggle, lowStock
           w-64
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Logo */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-slate-700/60">

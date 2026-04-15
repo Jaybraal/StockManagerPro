@@ -40,16 +40,9 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 
-    # JWT en cookies HttpOnly (más seguro que localStorage)
-    JWT_TOKEN_LOCATION = ['cookies', 'headers']  # Soporta ambos para compatibilidad
-    JWT_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False').lower() == 'true'  # True en producción (HTTPS)
-    JWT_COOKIE_CSRF_PROTECT = True  # Protección CSRF habilitada
-    JWT_CSRF_IN_COOKIES = True
-    JWT_ACCESS_COOKIE_NAME = 'access_token_cookie'
-    JWT_REFRESH_COOKIE_NAME = 'refresh_token_cookie'
-    JWT_ACCESS_CSRF_COOKIE_NAME = 'csrf_access_token'
-    JWT_REFRESH_CSRF_COOKIE_NAME = 'csrf_refresh_token'
-    JWT_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
+    # JWT solo via header Authorization: Bearer <token>
+    # El frontend envía el token en el header, no en cookies
+    JWT_TOKEN_LOCATION = ['headers']
 
     # CSRF Secret Key
     CSRF_SECRET_KEY = os.getenv('CSRF_SECRET_KEY', JWT_SECRET_KEY)

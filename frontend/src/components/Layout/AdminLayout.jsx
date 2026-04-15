@@ -2,60 +2,62 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Menu } from 'lucide-react';
+import { Menu, Home, Package, ArrowLeftRight, MoreHorizontal } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 
-const AdminLayout = ({ children, activeTab, setActiveTab }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+// Bottom nav tabs visibles en móvil
+const bottomNav = [
+  { id: 'dashboard',  label: 'Inicio',        icon: Home },
+  { id: 'inventory',  label: 'Inventario',    icon: Package },
+  { id: 'movements',  label: 'Movimientos',   icon: ArrowLeftRight },
+  { id: 'more',       label: 'Más',           icon: MoreHorizontal },
+];
+
+const AdminLayout = ({ children, activeTab, setActiveTab, lowStockCount = 0 }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
-  // Handle online/offline status
+  // Abrir sidebar por defecto en desktop
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  // Handle responsive sidebar
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const check = () => setSidebarOpen(window.innerWidth >= 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
 
   const handleLogout = async () => {
     try {
       await logout();
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminTenantId');
-      navigate('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
+    } catch (_) {}
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminTenantId');
+    navigate('/login');
+  };
+
+  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+
+  const handleBottomNav = (id) => {
+    if (id === 'more') {
+      setSidebarOpen(true);
+    } else {
+      setActiveTab(id);
     }
   };
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const tabLabel = {
+    dashboard: 'Dashboard',
+    inventory: 'Inventario',
+    movements: 'Movimientos',
+    suppliers: 'Proveedores',
+    users: 'Usuarios',
+    reports: 'Reportes',
+    settings: 'Configuración',
+  };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="flex h-screen bg-slate-100 dark:bg-slate-950 overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -63,41 +65,74 @@ const AdminLayout = ({ children, activeTab, setActiveTab }) => {
         onLogout={handleLogout}
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
+        lowStockCount={lowStockCount}
       />
 
-      {/* Main content */}
-      <main
-        className={`
-          flex-1 flex flex-col overflow-y-auto min-h-screen transition-all duration-300
-          ${sidebarOpen ? 'md:ml-64' : 'md:ml-20'}
-        `}
-      >
-        {/* Mobile top bar */}
-        <div className="md:hidden sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3 shadow-sm">
+      {/* Main */}
+      <main className="flex-1 flex flex-col min-h-screen overflow-y-auto overflow-x-hidden lg:ml-64">
+
+        {/* Top bar */}
+        <header className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700/60 shadow-sm" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="px-4 py-3 flex items-center gap-3">
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            aria-label="Abrir menú"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 lg:hidden"
+            aria-label="Menú"
           >
-            <Menu size={22} className="text-gray-600 dark:text-gray-400" />
+            <Menu size={22} />
           </button>
-          <span className="text-lg font-bold text-blue-700 dark:text-blue-400">StockManagerPro</span>
+          <div className="flex items-center gap-2 lg:hidden">
+            <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center">
+              <Package size={13} className="text-white" />
+            </div>
+            <span className="font-bold text-slate-800 dark:text-white text-sm">StockPro</span>
+          </div>
+          <span className="hidden lg:block text-lg font-bold text-slate-800 dark:text-white">
+            {tabLabel[activeTab] || 'StockPro'}
+          </span>
+          {lowStockCount > 0 && (
+            <span className="ml-auto flex items-center gap-1.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2.5 py-1 rounded-full font-medium">
+              ⚠ {lowStockCount} bajo stock
+            </span>
+          )}
         </div>
+        </header>
 
-        <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full p-4 md:p-8">
+        {/* Content */}
+        <div className="flex-1 p-4 md:p-6 lg:pb-6" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
           {children}
         </div>
       </main>
 
-      {/* Toast notifications */}
+      {/* Bottom nav – solo móvil */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex flex-col">
+        <div className="flex">
+          {bottomNav.map(({ id, label, icon: Icon }) => {
+            const active = activeTab === id || (id === 'more' && !['dashboard','inventory','movements'].includes(activeTab));
+            return (
+              <button
+                key={id}
+                onClick={() => handleBottomNav(id)}
+                className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs transition-colors
+                  ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}
+                `}
+              >
+                <Icon size={22} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+        {/* Relleno para home indicator de iOS */}
+        <div style={{ height: 'env(safe-area-inset-bottom)' }} />
+      </nav>
+
       <ToastContainer
         position="top-right"
-        autoClose={5000}
+        autoClose={4000}
         hideProgressBar={false}
         newestOnTop
         closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
         draggable
         pauseOnHover
         theme="colored"

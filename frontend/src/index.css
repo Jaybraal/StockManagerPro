@@ -50,6 +50,11 @@
   body {
     @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100;
     transition: background-color 0.3s ease, color 0.3s ease;
+    /* Evitar scroll de rebote en iOS PWA */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    /* Quitar highlight azul al tocar en móvil */
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -179,6 +184,14 @@ button, a, input, select, textarea {
   .sidebar-overlay {
     @apply fixed inset-0 bg-black bg-opacity-50 z-20;
   }
+}
+
+/* Safe area insets para iOS PWA (notch + home indicator) */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
 }
 
 /* Card hover effects */

@@ -244,11 +244,8 @@ const ProductForm = ({
           {field('Stock mínimo *', 'stock_minimo', 'number', { min: '0', placeholder: '5' })}
         </div>
 
-        {/* Unidades por empaque + Código de barras */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {field('Unidades por empaque', 'unidadesPorEmpaque', 'number', { min: '1', placeholder: 'Ej: 12' })}
-          {field('Código de barras', 'barcode', 'text', { placeholder: 'Opcional' })}
-        </div>
+        {/* Unidades por empaque */}
+        {field('Unidades por empaque', 'unidadesPorEmpaque', 'number', { min: '1', placeholder: 'Ej: 12' })}
       </div>
 
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">

@@ -67,52 +67,6 @@ export const useSuppliers = () => {
     }
   }, []);
 
-  // Get supplier invoices
-  const getSupplierInvoices = useCallback(async (supplierId) => {
-    try {
-      return await suppliersApi.getInvoices(supplierId);
-    } catch (err) {
-      toast.error(err.message);
-      throw err;
-    }
-  }, []);
-
-  // Create supplier invoice
-  const createSupplierInvoice = useCallback(async (supplierId, invoiceData) => {
-    try {
-      const result = await suppliersApi.createInvoice(supplierId, invoiceData);
-      toast.success('Factura de compra creada exitosamente');
-      return result;
-    } catch (err) {
-      toast.error(err.message);
-      throw err;
-    }
-  }, []);
-
-  // Update supplier invoice
-  const updateSupplierInvoice = useCallback(async (supplierId, invoiceId, invoiceData) => {
-    try {
-      const result = await suppliersApi.updateInvoice(supplierId, invoiceId, invoiceData);
-      toast.success('Factura actualizada exitosamente');
-      return result;
-    } catch (err) {
-      toast.error(err.message);
-      throw err;
-    }
-  }, []);
-
-  // Add payment to invoice
-  const addPayment = useCallback(async (supplierId, invoiceId, amount) => {
-    try {
-      const result = await suppliersApi.addPayment(supplierId, invoiceId, amount);
-      toast.success('Pago registrado exitosamente');
-      return result;
-    } catch (err) {
-      toast.error(err.message);
-      throw err;
-    }
-  }, []);
-
   // Filtered suppliers
   const filteredSuppliers = useMemo(() => {
     return suppliers.filter(supplier => {
@@ -151,11 +105,7 @@ export const useSuppliers = () => {
     fetchSuppliers,
     createSupplier,
     updateSupplier,
-    deleteSupplier,
-    getSupplierInvoices,
-    createSupplierInvoice,
-    updateSupplierInvoice,
-    addPayment
+    deleteSupplier
   };
 };
 

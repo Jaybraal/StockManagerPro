@@ -47,36 +47,37 @@ const Movements = ({ movements, loading, onRefresh, onCreateMovement, products }
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">Movimientos de Stock</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Historial de entradas y salidas</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           <button
             onClick={onRefresh}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors shrink-0"
             title="Actualizar"
           >
             <RefreshCw size={17} />
           </button>
+          {/* Botones masivos — en móvil solo icono */}
           <button
             onClick={() => setBulkType('entrada')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-sm text-sm"
-            title="Recibir varios productos a la vez"
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-sm text-sm shrink-0"
+            title="Recepción masiva"
           >
             <Layers size={17} />
-            Recepción masiva
+            <span className="hidden sm:inline">Recepción</span>
           </button>
           <button
             onClick={() => setBulkType('salida')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 text-white rounded-xl font-semibold hover:bg-rose-700 transition-colors shadow-sm text-sm"
-            title="Registrar pedido de varios productos"
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-rose-600 text-white rounded-xl font-semibold hover:bg-rose-700 transition-colors shadow-sm text-sm shrink-0"
+            title="Pedido rápido"
           >
             <Layers size={17} />
-            Pedido rápido
+            <span className="hidden sm:inline">Pedido</span>
           </button>
           <button
             onClick={() => setQuickProduct('_pick')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-sm text-sm"
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-sm text-sm shrink-0"
           >
             <Plus size={17} />
-            Individual
+            <span className="hidden sm:inline">Individual</span>
           </button>
         </div>
       </div>

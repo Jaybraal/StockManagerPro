@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShoppingBag, Plus, X } from 'lucide-react';
+import { ShoppingBag, Plus, Trash2, ChevronRight } from 'lucide-react';
 import CategoryForm from './CategoryForm';
 
 const Categories = ({
@@ -12,10 +12,6 @@ const Categories = ({
 }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const handleAdd = () => {
-    setIsFormOpen(true);
-  };
-
   const handleSave = async (categoryData) => {
     await onAddCategory(categoryData);
     setIsFormOpen(false);
@@ -24,73 +20,84 @@ const Categories = ({
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500" />
       </div>
     );
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Inventario</h2>
-
-      {/* Actions */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Nueva Categoria
-        </button>
-        {onImport && (
-          <button
-            onClick={onImport}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
-          >
-            Importar
-          </button>
-        )}
-      </div>
-
-      {/* Categories Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {categories.map(cat => (
-          <div
-            key={cat.id}
-            className="relative group bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-2xl shadow-lg p-6 md:p-8 flex flex-col items-center justify-center cursor-pointer transition-all hover:-translate-y-1 hover:shadow-2xl border border-blue-100 dark:border-blue-800"
-            onClick={() => onSelectCategory(cat)}
-          >
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-blue-200 dark:bg-blue-800 mb-4 shadow-inner">
-              <ShoppingBag size={36} className="text-blue-600 dark:text-blue-400" />
-            </div>
-            <h3 className="text-xl font-bold text-blue-800 dark:text-blue-200 mb-2 text-center">
-              {cat.name}
-            </h3>
-            <span className="inline-block bg-blue-600 dark:bg-blue-700 text-white text-xs font-semibold px-3 py-1 rounded-full mb-2 shadow">
-              {cat.products?.length || 0} productos
-            </span>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Inventario</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{categories.length} categorías</p>
+        </div>
+        <div className="flex gap-2">
+          {onImport && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteCategory(cat.id);
-              }}
-              className="absolute top-3 right-3 p-2 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 transition-opacity opacity-0 group-hover:opacity-100 shadow"
-              title="Eliminar categoria"
+              onClick={onImport}
+              className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm"
             >
-              <X size={20} />
+              Importar
             </button>
-          </div>
-        ))}
-
-        {categories.length === 0 && (
-          <div className="col-span-full text-center py-12 text-gray-500 dark:text-gray-400">
-            <ShoppingBag size={48} className="mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-            <p>No hay categorias. Crea una para empezar.</p>
-          </div>
-        )}
+          )}
+          <button
+            onClick={() => setIsFormOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-sm text-sm"
+          >
+            <Plus size={17} />
+            <span className="hidden xs:inline">Nueva</span>
+            <span className="xs:hidden">+</span>
+          </button>
+        </div>
       </div>
 
-      {/* Category Form Modal */}
+      {/* Grid */}
+      {categories.length === 0 ? (
+        <div className="py-16 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+            <ShoppingBag size={28} className="text-slate-400 dark:text-slate-500" />
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">No hay categorías. Crea una para empezar.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {categories.map(cat => (
+            <div
+              key={cat.id}
+              onClick={() => onSelectCategory(cat)}
+              className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-4 flex items-center gap-4 cursor-pointer hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-800 transition-all active:scale-[0.98]"
+            >
+              {/* Icono */}
+              <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                <ShoppingBag size={22} className="text-indigo-600 dark:text-indigo-400" />
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-900 dark:text-white truncate">{cat.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {cat.products?.length || 0} productos
+                </p>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDeleteCategory(cat.id); }}
+                  className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 flex items-center justify-center transition-colors"
+                  title="Eliminar categoría"
+                >
+                  <Trash2 size={15} />
+                </button>
+                <ChevronRight size={16} className="text-slate-300 dark:text-slate-600" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <CategoryForm
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
