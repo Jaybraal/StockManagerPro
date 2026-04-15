@@ -5,19 +5,19 @@ const StockAlerts = ({ lowStockProducts = [], onViewAll }) => {
   const displayProducts = lowStockProducts.slice(0, 5);
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-          <AlertTriangle size={20} className="text-amber-500" />
-          Alertas de Stock Bajo
+    <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <AlertTriangle size={18} className="text-amber-500 shrink-0" />
+          <span>Alertas de Stock Bajo</span>
         </h3>
         {lowStockProducts.length > 5 && (
           <button
             onClick={onViewAll}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 whitespace-nowrap"
           >
             Ver todos ({lowStockProducts.length})
-            <ArrowRight size={14} />
+            <ArrowRight size={14} className="shrink-0" />
           </button>
         )}
       </div>
@@ -38,18 +38,18 @@ const StockAlerts = ({ lowStockProducts = [], onViewAll }) => {
             return (
               <div
                 key={product.id}
-                className={`p-3 rounded-lg border ${
+                className={`p-2 sm:p-3 rounded-lg border ${
                   isOutOfStock
                     ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
                     : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 dark:text-white text-sm break-words">
                       {product.name}
                     </p>
-                    <p className={`text-sm ${
+                    <p className={`text-xs sm:text-sm ${
                       isOutOfStock
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-amber-600 dark:text-amber-400'
@@ -57,7 +57,7 @@ const StockAlerts = ({ lowStockProducts = [], onViewAll }) => {
                       Stock: {product.stock} / Min: {product.stock_minimo}
                     </p>
                   </div>
-                  <div className={`px-2 py-1 rounded text-xs font-semibold ${
+                  <div className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
                     isOutOfStock
                       ? 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200'
                       : 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'

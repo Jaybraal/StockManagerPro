@@ -13,14 +13,14 @@ const StatCard = ({ title, value, sub, icon: Icon, accent = 'indigo', onClick })
   return (
     <div
       onClick={onClick}
-      className={`bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-3 overflow-hidden ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      className={`bg-white dark:bg-slate-800 rounded-2xl p-3 sm:p-4 md:p-5 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 overflow-hidden ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
     >
-      <div className={`w-12 h-12 rounded-xl ${colors[accent]} flex items-center justify-center shrink-0 shadow-md`}>
-        <Icon size={22} className="text-white" />
+      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${colors[accent]} flex items-center justify-center shrink-0 shadow-md`}>
+        <Icon size={20} className="text-white" />
       </div>
-      <div className="min-w-0 overflow-hidden">
+      <div className="min-w-0 flex-1">
         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wide truncate">{title}</p>
-        <p className="text-base sm:text-2xl font-bold text-slate-900 dark:text-white mt-0.5 leading-tight break-words">{value}</p>
+        <p className="text-sm sm:text-lg md:text-2xl font-bold text-slate-900 dark:text-white mt-0.5 leading-tight break-words line-clamp-2">{value}</p>
         {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">{sub}</p>}
       </div>
     </div>
@@ -60,7 +60,7 @@ const Dashboard = ({ dashboardData, users, lowStockProducts, onViewStockAlerts, 
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
         <StatCard title="Productos" value={dashboardData.totalProducts || 0} icon={Package} accent="indigo" sub={`${categoriesCount} categorías`} />
         <StatCard title="Unidades" value={totalStock.toLocaleString()} icon={BarChart2} accent="violet" />
         <StatCard

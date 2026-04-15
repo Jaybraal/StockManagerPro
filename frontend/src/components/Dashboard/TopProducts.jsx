@@ -13,22 +13,22 @@ const TopProducts = ({ products = [] }) => {
   }, [products]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+    <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 md:p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">
         Top 10 Productos con Mayor Stock
       </h3>
 
       {topProducts.length === 0 ? (
-        <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="h-48 sm:h-64 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
           No hay productos disponibles
         </div>
       ) : (
-        <div className="h-64 md:h-80">
+        <div className="h-48 sm:h-64 md:h-80 overflow-x-auto">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={topProducts}
               layout="vertical"
-              margin={{ left: 20, right: 20 }}
+              margin={{ left: 10, right: 10, top: 5, bottom: 5 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -45,11 +45,11 @@ const TopProducts = ({ products = [] }) => {
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ fontSize: 11, fill: isDark ? '#9CA3AF' : '#6B7280' }}
+                tick={{ fontSize: 10, fill: isDark ? '#9CA3AF' : '#6B7280' }}
                 tickLine={false}
                 axisLine={{ stroke: isDark ? '#374151' : '#E5E7EB' }}
-                width={100}
-                tickFormatter={(value) => value.length > 15 ? value.slice(0, 15) + '...' : value}
+                width={Math.max(60, Math.min(120, window.innerWidth > 768 ? 100 : 70))}
+                tickFormatter={(value) => value.length > 12 ? value.slice(0, 12) + '...' : value}
               />
               <Tooltip
                 contentStyle={{
