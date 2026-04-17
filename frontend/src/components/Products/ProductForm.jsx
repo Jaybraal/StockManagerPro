@@ -97,7 +97,7 @@ const ProductForm = ({
 
   const field = (label, name, type = 'text', props = {}) => (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
         {label}
       </label>
       <input
@@ -122,10 +122,10 @@ const ProductForm = ({
       icon={Package}
       maxWidth="max-w-xl"
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Nombre */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
             Nombre *
           </label>
           <input
@@ -138,28 +138,13 @@ const ProductForm = ({
               errors.nombre ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
           />
-          {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
-        </div>
-
-        {/* Descripción */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Descripción
-          </label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows={2}
-            placeholder="Descripción opcional del producto"
-            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
-          />
+          {errors.nombre && <p className="text-red-500 text-xs mt-0.5">{errors.nombre}</p>}
         </div>
 
         {/* Categoría + Unidad */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Categoría *
             </label>
             <select
@@ -175,12 +160,12 @@ const ProductForm = ({
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
-            {errors.category_id && <p className="text-red-500 text-xs mt-1">{errors.category_id}</p>}
+            {errors.category_id && <p className="text-red-500 text-xs mt-0.5">{errors.category_id}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Unidad de medida
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Unidad
             </label>
             <select
               name="unit"
@@ -195,9 +180,9 @@ const ProductForm = ({
         </div>
 
         {/* Precio venta + Costo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Precio de venta *
             </label>
             <div className="relative">
@@ -215,11 +200,11 @@ const ProductForm = ({
                 }`}
               />
             </div>
-            {errors.precio && <p className="text-red-500 text-xs mt-1">{errors.precio}</p>}
+            {errors.precio && <p className="text-red-500 text-xs mt-0.5">{errors.precio}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Costo por item
             </label>
             <div className="relative">
@@ -238,26 +223,39 @@ const ProductForm = ({
           </div>
         </div>
 
-        {/* Stock + Stock Mínimo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Stock + Stock Mínimo + Unidades por empaque */}
+        <div className="grid grid-cols-3 gap-2">
           {field('Stock actual *', 'stock', 'number', { min: '0', placeholder: '0' })}
-          {field('Stock mínimo *', 'stock_minimo', 'number', { min: '0', placeholder: '5' })}
+          {field('Stock mínimo', 'stock_minimo', 'number', { min: '0', placeholder: '5' })}
+          {field('Uds. empaque', 'unidadesPorEmpaque', 'number', { min: '1', placeholder: 'Ej: 12' })}
         </div>
 
-        {/* Unidades por empaque */}
-        {field('Unidades por empaque', 'unidadesPorEmpaque', 'number', { min: '1', placeholder: 'Ej: 12' })}
+        {/* Descripción — opcional, al final */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Descripción (opcional)
+          </label>
+          <textarea
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            rows={2}
+            placeholder="Descripción del producto"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+          />
+        </div>
       </div>
 
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <div className="flex gap-3 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
         <button
           onClick={onClose}
-          className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium text-sm"
+          className="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium text-sm"
         >
           Cancelar
         </button>
         <button
           onClick={handleSubmit}
-          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow text-sm"
+          className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow text-sm"
         >
           {product ? 'Guardar Cambios' : 'Agregar Producto'}
         </button>
