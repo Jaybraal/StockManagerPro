@@ -28,8 +28,8 @@ const Modal = ({
         )}
 
         {title && (
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-blue-700 dark:text-blue-400 flex items-center gap-2 pr-8">
-            {Icon && <Icon className="inline-block" size={22} />}
+          <h2 className="text-base font-semibold mb-4 text-gray-800 dark:text-gray-100 flex items-center gap-2 pr-8">
+            {Icon && <Icon size={16} className="text-blue-600 dark:text-blue-400" />}
             {title}
           </h2>
         )}
