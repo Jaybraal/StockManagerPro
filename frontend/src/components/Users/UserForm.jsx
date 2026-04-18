@@ -70,6 +70,23 @@ const UserForm = ({
     onSave(formData);
   };
 
+  const footer = (
+    <div className="flex justify-end gap-3">
+      <button
+        onClick={onClose}
+        className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium"
+      >
+        Cancelar
+      </button>
+      <button
+        onClick={handleSubmit}
+        className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow"
+      >
+        {user ? 'Guardar Cambios' : 'Guardar'}
+      </button>
+    </div>
+  );
+
   return (
     <Modal
       isOpen={isOpen}
@@ -77,6 +94,7 @@ const UserForm = ({
       title={user ? 'Editar Usuario' : 'Agregar Usuario'}
       icon={User}
       maxWidth="max-w-md"
+      footer={footer}
     >
       <div className="space-y-4">
         <div>
@@ -163,20 +181,6 @@ const UserForm = ({
         )}
       </div>
 
-      <div className="flex justify-end gap-3 mt-6">
-        <button
-          onClick={onClose}
-          className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleSubmit}
-          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow"
-        >
-          {user ? 'Guardar Cambios' : 'Guardar'}
-        </button>
-      </div>
     </Modal>
   );
 };

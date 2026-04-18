@@ -26,6 +26,23 @@ const CategoryForm = ({
     onSave({ name: name.trim() });
   };
 
+  const footer = (
+    <div className="flex justify-end gap-3">
+      <button
+        onClick={onClose}
+        className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium"
+      >
+        Cancelar
+      </button>
+      <button
+        onClick={handleSubmit}
+        className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow"
+      >
+        {category ? 'Guardar' : 'Crear'}
+      </button>
+    </div>
+  );
+
   return (
     <Modal
       isOpen={isOpen}
@@ -33,6 +50,7 @@ const CategoryForm = ({
       title={category ? 'Editar Categoria' : 'Nueva Categoria'}
       icon={ShoppingBag}
       maxWidth="max-w-md"
+      footer={footer}
     >
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -48,21 +66,6 @@ const CategoryForm = ({
           placeholder="Ej: Electronica, Ropa, Alimentos..."
         />
         {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-      </div>
-
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={onClose}
-          className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleSubmit}
-          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow"
-        >
-          {category ? 'Guardar' : 'Crear'}
-        </button>
       </div>
     </Modal>
   );

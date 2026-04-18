@@ -77,6 +77,23 @@ const ProductForm = ({ isOpen, onClose, onSave, product, categories }) => {
     ? <p className="text-red-500 text-xs mt-0.5">{errors[name]}</p>
     : null;
 
+  const footerActions = (
+    <div className="flex gap-2">
+      <button
+        onClick={onClose}
+        className="flex-1 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        Cancelar
+      </button>
+      <button
+        onClick={handleSubmit}
+        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-semibold transition-colors"
+      >
+        {product ? 'Guardar' : 'Agregar'}
+      </button>
+    </div>
+  );
+
   return (
     <Modal
       isOpen={isOpen}
@@ -84,6 +101,7 @@ const ProductForm = ({ isOpen, onClose, onSave, product, categories }) => {
       title={product ? 'Editar Producto' : 'Nuevo Producto'}
       icon={Package}
       maxWidth="max-w-md"
+      footer={footerActions}
     >
       <div className="space-y-3">
 
@@ -212,22 +230,6 @@ const ProductForm = ({ isOpen, onClose, onSave, product, categories }) => {
           </div>
         </div>
 
-      </div>
-
-      {/* Acciones */}
-      <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-        <button
-          onClick={onClose}
-          className="flex-1 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleSubmit}
-          className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-semibold transition-colors"
-        >
-          {product ? 'Guardar' : 'Agregar'}
-        </button>
       </div>
     </Modal>
   );
