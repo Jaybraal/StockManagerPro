@@ -22,15 +22,15 @@ const Modal = ({
   // Split children: everything except last element (buttons) scrolls; or use footer prop
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50"
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         className={`
           bg-white dark:bg-gray-800 shadow-2xl w-full ${maxWidth}
           flex flex-col
-          rounded-t-2xl sm:rounded-2xl
-          max-h-[calc(100dvh-4rem)] sm:max-h-[90vh]
+          rounded-2xl
+          max-h-[90dvh]
         `}
       >
         {/* Header */}
