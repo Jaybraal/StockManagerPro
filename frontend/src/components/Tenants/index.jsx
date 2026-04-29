@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Building2, Plus, Trash2, Users, RefreshCw, Eye } from 'lucide-react';
+import { Building2, Plus, Trash2, Users, RefreshCw, Shield } from 'lucide-react';
+import { toast } from 'react-toastify';
 import TenantForm from './TenantForm';
+import { superadminApi } from '../../services/api';
 
 const Tenants = ({
   tenants,
@@ -14,6 +16,32 @@ const Tenants = ({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [createdInfo, setCreatedInfo] = useState(null);
   const [selectedTenant, setSelectedTenant] = useState(null);
+  const [editCredUser, setEditCredUser] = useState(null);
+  const [credForm, setCredForm] = useState({ newUsername: '', newPassword: '' });
+  const [credSaving, setCredSaving] = useState(false);
+
+  const handleCredentialsSave = async (e) => {
+    e.preventDefault();
+    if (!credForm.newUsername && !credForm.newPassword) {
+      toast.error('Ingresa al menos un campo a cambiar');
+      return;
+    }
+    setCredSaving(true);
+    try {
+      await superadminApi.setUserCredentials(editCredUser.id, {
+        new_username: credForm.newUsername || undefined,
+        new_password: credForm.newPassword || undefined
+      });
+      toast.success(`Credenciales de "${editCredUser.username}" actualizadas`);
+      setEditCredUser(null);
+      setCredForm({ newUsername: '', newPassword: '' });
+      onRefresh();
+    } catch (err) {
+      toast.error(err.message || 'Error al actualizar credenciales');
+    } finally {
+      setCredSaving(false);
+    }
+  };
 
   const handleSave = async (data) => {
     try {
@@ -134,18 +162,29 @@ const Tenants = ({
                 <p className="text-center text-sm text-gray-400 py-8">Sin usuarios</p>
               ) : (
                 tenantUsers.map(u => (
-                  <div key={u.id} className="px-4 py-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{u.username}</p>
+                  <div key={u.id} className="px-4 py-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{u.username}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{u.role}</p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                      u.active
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                        : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                    }`}>
-                      {u.active ? 'Activo' : 'Inactivo'}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                        u.active
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                      }`}>
+                        {u.active ? 'Activo' : 'Inactivo'}
+                      </span>
+                      {u.role !== 'superadmin' && (
+                        <button
+                          onClick={() => { setEditCredUser(u); setCredForm({ newUsername: '', newPassword: '' }); }}
+                          className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-gray-400 hover:text-amber-600 transition-colors"
+                          title="Cambiar credenciales"
+                        >
+                          <Shield size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -160,6 +199,65 @@ const Tenants = ({
         onClose={() => setIsFormOpen(false)}
         onSave={handleSave}
       />
+
+      {/* Modal cambio de credenciales de usuario (solo superadmin) */}
+      {editCredUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+              <Shield size={20} />
+              Cambiar Credenciales
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Usuario: <strong>{editCredUser.username}</strong> ({editCredUser.role})
+            </p>
+            <form onSubmit={handleCredentialsSave} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Nuevo usuario (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={credForm.newUsername}
+                  onChange={e => setCredForm(p => ({ ...p, newUsername: e.target.value }))}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Nueva contraseña (opcional, mín. 6 caracteres)
+                </label>
+                <input
+                  type="password"
+                  value={credForm.newPassword}
+                  onChange={e => setCredForm(p => ({ ...p, newPassword: e.target.value }))}
+                  minLength={credForm.newPassword ? 6 : undefined}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                El usuario deberá cambiar su contraseña al próximo inicio de sesión.
+              </p>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditCredUser(null)}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={credSaving}
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {credSaving ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal de credenciales generadas */}
       {createdInfo && (

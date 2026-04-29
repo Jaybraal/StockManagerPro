@@ -230,6 +230,28 @@ export const tenantsApi = {
   }),
 };
 
+// Billing integration API
+export const billingApi = {
+  getConfig: (tenantId) => apiCall(`/api/billing/${tenantId}/config`),
+
+  regenerateKey: (tenantId) => apiCall(`/api/billing/${tenantId}/regenerate-key`, {
+    method: 'POST'
+  })
+};
+
+// Superadmin self-service credentials
+export const superadminApi = {
+  changeOwnCredentials: (data) => apiCall('/api/superadmin/me/credentials', {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  setUserCredentials: (userId, data) => apiCall(`/api/superadmin/users/${userId}/credentials`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  })
+};
+
 export default {
   products: productsApi,
   categories: categoriesApi,
@@ -239,5 +261,7 @@ export default {
   notifications: notificationsApi,
   dashboard: dashboardApi,
   reports: reportsApi,
-  tenants: tenantsApi
+  tenants: tenantsApi,
+  billing: billingApi,
+  superadmin: superadminApi
 };

@@ -47,24 +47,31 @@ with app.app_context():
     except Exception as e:
         print(f"[Backend] Advertencia init_db: {e}")
 
-    # Crear superadmin si no existe — bloque separado para no fallar silenciosamente
+    # Crear superadmin si no existe — credenciales desde env vars
     try:
         from werkzeug.security import generate_password_hash as _gph
         if not User.query.filter_by(role='superadmin').first():
             first_tenant = Tenant.query.order_by(Tenant.id).first()
             if first_tenant:
                 from database import db as _db
+                sa_username = os.environ.get('SUPERADMIN_USERNAME', 'superadmin')
+                sa_password = os.environ.get('SUPERADMIN_PASSWORD')
+                force_change = False
+                if not sa_password:
+                    sa_password = secrets.token_hex(8)
+                    force_change = True
+                    print(f"[Startup] SUPERADMIN_PASSWORD no configurado. Contraseña generada: {sa_password}")
                 sa = User(
-                    username='superadmin',
-                    password_hash=_gph('superadmin'),
+                    username=sa_username,
+                    password_hash=_gph(sa_password),
                     role='superadmin',
                     tenant_id=first_tenant.id,
-                    must_change_password=True,
+                    must_change_password=force_change,
                     active=True
                 )
                 _db.session.add(sa)
                 _db.session.commit()
-                print("[Startup] Superadmin creado: usuario='superadmin' pass='superadmin' — CÁMBIALA")
+                print(f"[Startup] Superadmin creado: usuario='{sa_username}'")
             else:
                 print("[Startup] ADVERTENCIA: no hay tenants, superadmin no creado")
         else:
@@ -300,18 +307,23 @@ def setup_init():
     tenant = Tenant.query.order_by(Tenant.id).first()
     if not tenant:
         return jsonify({'message': 'No hay tenants en la base de datos'}), 400
-    from werkzeug.security import generate_password_hash as _gph
+    sa_username = os.environ.get('SUPERADMIN_USERNAME', 'superadmin')
+    sa_password = os.environ.get('SUPERADMIN_PASSWORD')
+    force_change = False
+    if not sa_password:
+        sa_password = secrets.token_hex(8)
+        force_change = True
     sa = User(
-        username='superadmin',
-        password_hash=_gph('superadmin'),
+        username=sa_username,
+        password_hash=generate_password_hash(sa_password),
         role='superadmin',
         tenant_id=tenant.id,
-        must_change_password=True,
+        must_change_password=force_change,
         active=True
     )
     db.session.add(sa)
     db.session.commit()
-    return jsonify({'message': 'Superadmin creado', 'username': 'superadmin', 'password': 'superadmin'}), 201
+    return jsonify({'message': 'Superadmin creado', 'username': sa_username, 'temp_password': sa_password if force_change else None}), 201
 
 
 # Endpoint para verificar estado de autenticación
@@ -1197,12 +1209,8 @@ def update_user(tenant_id, user_id):
 @app.route('/api/users/<int:tenant_id>/<int:user_id>/reset-password', methods=['POST'])
 @jwt_required()
 def reset_user_password(tenant_id, user_id):
-    # Obtener la identidad del token JWT (ahora es el user_id como cadena)
-    current_user_id_str = get_jwt_identity()
-
-    # Convertir la identidad de cadena a entero y obtener el objeto User
     try:
-        current_user_id = int(current_user_id_str)
+        current_user_id = int(get_jwt_identity())
         current_user = db.session.get(User, current_user_id)
     except (ValueError, TypeError):
         return jsonify({"message": "Invalid user ID in token"}), 403
@@ -1210,20 +1218,31 @@ def reset_user_password(tenant_id, user_id):
     if not current_user:
         return jsonify({"message": "User specified in token not found"}), 404
 
-    # Verificar si el usuario actual es administrador y pertenece al tenant correcto
-    if current_user.tenant_id != tenant_id or current_user.role != 'administrador':
+    is_superadmin = current_user.role == 'superadmin'
+    is_admin_of_tenant = current_user.tenant_id == tenant_id and current_user.role == 'administrador'
+
+    if not is_superadmin and not is_admin_of_tenant:
         return jsonify({'message': 'No autorizado para resetear contraseñas'}), 403
 
-    # No permitir que un administrador resetee su propia contraseña a través de esta ruta
     if current_user_id == user_id:
-         return jsonify({'message': 'No puedes resetear tu propia contraseña a través de esta ruta.'}), 400
+        return jsonify({'message': 'Usa la opción de cambiar tus propias credenciales.'}), 400
 
     user_to_reset = User.query.filter_by(id=user_id, tenant_id=tenant_id).first()
     if not user_to_reset:
         return jsonify({'message': 'Usuario no encontrado'}), 404
+
+    # Administrador no puede resetear a otro administrador ni al superadmin
+    if is_admin_of_tenant and user_to_reset.role in ('administrador', 'superadmin'):
+        return jsonify({'message': 'No tienes permiso para resetear las credenciales de este usuario'}), 403
+
+    # Nadie puede resetear al superadmin excepto el superadmin mismo (y no a sí mismo)
+    if user_to_reset.role == 'superadmin':
+        return jsonify({'message': 'No se puede resetear la contraseña del superadmin desde aquí'}), 403
+
     try:
         new_password = generate_random_password()
         user_to_reset.set_password(new_password)
+        user_to_reset.must_change_password = True
         db.session.commit()
         return jsonify({'message': 'Contraseña reseteada exitosamente', 'generated_password': new_password}), 200
     except Exception as e:
@@ -1279,6 +1298,93 @@ def update_admin_credentials(tenant_id):
     db.session.commit()
 
     return jsonify({'message': 'Credenciales actualizadas exitosamente'}), 200
+
+
+@app.route('/api/superadmin/me/credentials', methods=['PUT'])
+@jwt_required()
+def superadmin_change_own_credentials():
+    """Superadmin cambia sus propias credenciales (requiere contraseña actual)."""
+    try:
+        current_user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, current_user_id)
+    except (ValueError, TypeError):
+        return jsonify({"message": "Token inválido"}), 403
+
+    if not current_user or current_user.role != 'superadmin':
+        return jsonify({'message': 'Se requiere rol de superadmin'}), 403
+
+    data = request.get_json()
+    current_password = data.get('current_password', '')
+    new_username = data.get('new_username', '').strip()
+    new_password = data.get('new_password', '').strip()
+
+    if not current_password:
+        return jsonify({'message': 'Se requiere la contraseña actual'}), 400
+
+    if not current_user.check_password(current_password):
+        return jsonify({'message': 'Contraseña actual incorrecta'}), 401
+
+    if not new_username and not new_password:
+        return jsonify({'message': 'Debes proporcionar al menos un campo a cambiar'}), 400
+
+    if new_username:
+        conflict = User.query.filter(User.username == new_username, User.id != current_user_id).first()
+        if conflict:
+            return jsonify({'message': f'El usuario "{new_username}" ya existe'}), 400
+        current_user.username = new_username
+
+    if new_password:
+        if len(new_password) < 6:
+            return jsonify({'message': 'La contraseña debe tener al menos 6 caracteres'}), 400
+        current_user.set_password(new_password)
+        current_user.must_change_password = False
+
+    db.session.commit()
+    return jsonify({'message': 'Credenciales actualizadas exitosamente'}), 200
+
+
+@app.route('/api/superadmin/users/<int:user_id>/credentials', methods=['PUT'])
+@jwt_required()
+def superadmin_set_user_credentials(user_id):
+    """Solo superadmin: cambia username y/o password de cualquier usuario (excepto otro superadmin)."""
+    try:
+        current_user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, current_user_id)
+    except (ValueError, TypeError):
+        return jsonify({"message": "Invalid user ID in token"}), 403
+
+    if not current_user or current_user.role != 'superadmin':
+        return jsonify({'message': 'Se requiere rol de superadmin'}), 403
+
+    target = db.session.get(User, user_id)
+    if not target:
+        return jsonify({'message': 'Usuario no encontrado'}), 404
+
+    if target.role == 'superadmin':
+        return jsonify({'message': 'No puedes cambiar las credenciales de otro superadmin'}), 403
+
+    data = request.get_json()
+    new_username = data.get('new_username', '').strip()
+    new_password = data.get('new_password', '').strip()
+
+    if not new_username and not new_password:
+        return jsonify({'message': 'Debes proporcionar al menos un campo a cambiar'}), 400
+
+    if new_username:
+        conflict = User.query.filter(User.username == new_username, User.id != user_id).first()
+        if conflict:
+            return jsonify({'message': f'El usuario "{new_username}" ya existe'}), 400
+        target.username = new_username
+
+    if new_password:
+        if len(new_password) < 6:
+            return jsonify({'message': 'La contraseña debe tener al menos 6 caracteres'}), 400
+        target.set_password(new_password)
+        target.must_change_password = True
+
+    db.session.commit()
+    return jsonify({'message': 'Credenciales actualizadas exitosamente'}), 200
+
 
 @app.route('/api/users/<int:tenant_id>/<int:user_id>', methods=['DELETE'])
 @jwt_required()
@@ -1496,6 +1602,178 @@ def import_from_api():
         }), 200
     else:
         return jsonify({'error': 'No se pudo detectar la API o importar los productos'}), 500
+
+
+# ─── INTEGRACIÓN CON SISTEMAS DE FACTURACIÓN EXTERNOS ────────────────────────
+
+@app.route('/api/billing/<int:tenant_id>/config', methods=['GET'])
+@jwt_required()
+def get_billing_config(tenant_id):
+    """Devuelve la configuración de integración (webhook URL + API key enmascarada)."""
+    try:
+        current_user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, current_user_id)
+    except (ValueError, TypeError):
+        return jsonify({"message": "Token inválido"}), 403
+
+    if not current_user or (current_user.role not in ('superadmin', 'administrador')) or \
+       (current_user.role == 'administrador' and current_user.tenant_id != tenant_id):
+        return jsonify({'message': 'No autorizado'}), 403
+
+    tenant = db.session.get(Tenant, tenant_id)
+    if not tenant:
+        return jsonify({'message': 'Negocio no encontrado'}), 404
+
+    cfg = tenant.config if isinstance(tenant.config, dict) else {}
+    api_key = cfg.get('billing_api_key', '')
+    masked = (api_key[:4] + '****' + api_key[-4:]) if len(api_key) >= 8 else ('****' if api_key else None)
+
+    base_url = request.host_url.rstrip('/')
+    return jsonify({
+        'webhook_url': f"{base_url}/api/webhook/invoice/{tenant_id}",
+        'api_key_masked': masked,
+        'has_key': bool(api_key)
+    }), 200
+
+
+@app.route('/api/billing/<int:tenant_id>/regenerate-key', methods=['POST'])
+@jwt_required()
+def regenerate_billing_key(tenant_id):
+    """Genera una nueva API key para autenticar sistemas externos."""
+    try:
+        current_user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, current_user_id)
+    except (ValueError, TypeError):
+        return jsonify({"message": "Token inválido"}), 403
+
+    if not current_user or (current_user.role not in ('superadmin', 'administrador')) or \
+       (current_user.role == 'administrador' and current_user.tenant_id != tenant_id):
+        return jsonify({'message': 'No autorizado'}), 403
+
+    tenant = db.session.get(Tenant, tenant_id)
+    if not tenant:
+        return jsonify({'message': 'Negocio no encontrado'}), 404
+
+    new_key = secrets.token_hex(24)
+    cfg = tenant.config if isinstance(tenant.config, dict) else {}
+    cfg['billing_api_key'] = new_key
+    tenant.config = cfg
+    flag_modified(tenant, 'config')
+    db.session.commit()
+
+    return jsonify({'api_key': new_key, 'message': 'Clave generada. Guárdala, no se mostrará completa de nuevo.'}), 200
+
+
+@app.route('/api/webhook/invoice/<int:tenant_id>', methods=['POST'])
+def receive_invoice_webhook(tenant_id):
+    """
+    Endpoint público autenticado por API key.
+    Recibe facturas de sistemas externos y descuenta el stock automáticamente.
+
+    Payload esperado:
+    {
+      "invoice_number": "FAC-001",          (opcional, para el registro)
+      "items": [
+        {"barcode": "123456", "quantity": 2},
+        {"name": "Producto X", "quantity": 1}
+      ]
+    }
+    """
+    tenant = db.session.get(Tenant, tenant_id)
+    if not tenant:
+        return jsonify({'error': 'Negocio no encontrado'}), 404
+
+    cfg = tenant.config if isinstance(tenant.config, dict) else {}
+    valid_key = cfg.get('billing_api_key', '')
+    if not valid_key:
+        return jsonify({'error': 'Este negocio no tiene integración de facturación configurada'}), 403
+
+    # Autenticar: API key en header o query param
+    provided_key = request.headers.get('X-API-Key') or request.args.get('api_key', '')
+    if not secrets.compare_digest(provided_key, valid_key):
+        return jsonify({'error': 'API key inválida'}), 401
+
+    data = request.get_json(silent=True)
+    if not data or 'items' not in data:
+        return jsonify({'error': 'Payload inválido. Se requiere campo "items"'}), 400
+
+    items = data.get('items', [])
+    invoice_number = data.get('invoice_number', 'sin-número')
+    results = []
+
+    for item in items:
+        barcode = item.get('barcode', '').strip()
+        name = item.get('name', '').strip()
+        quantity = item.get('quantity', 0)
+
+        if not isinstance(quantity, int) or quantity <= 0:
+            results.append({'input': item, 'status': 'error', 'message': 'Cantidad inválida'})
+            continue
+
+        # Buscar producto por barcode primero, luego por nombre
+        product = None
+        if barcode:
+            product = Product.query.filter_by(tenant_id=tenant_id, barcode=barcode).first()
+        if not product and name:
+            product = Product.query.filter(
+                Product.tenant_id == tenant_id,
+                Product.name.ilike(f'%{name}%')
+            ).first()
+
+        if not product:
+            results.append({'input': item, 'status': 'not_found', 'message': 'Producto no encontrado'})
+            continue
+
+        if product.stock < quantity:
+            results.append({
+                'input': item, 'status': 'insufficient_stock',
+                'message': f'Stock insuficiente. Disponible: {product.stock}'
+            })
+            continue
+
+        stock_before = product.stock
+        product.stock -= quantity
+
+        movement = StockMovement(
+            tenant_id=tenant_id,
+            product_id=product.id,
+            user_id=None,
+            type='salida',
+            quantity=quantity,
+            reason=f'Factura {invoice_number} (sistema externo)',
+            stock_before=stock_before,
+            stock_after=product.stock
+        )
+        db.session.add(movement)
+
+        if product.stock <= product.stock_minimo:
+            socketio.emit('low_stock_alert', {
+                'product_id': product.id,
+                'product_name': product.name,
+                'stock': product.stock,
+                'stock_minimo': product.stock_minimo
+            }, room=str(tenant_id))
+
+        results.append({
+            'product': product.name,
+            'status': 'ok',
+            'quantity_deducted': quantity,
+            'stock_remaining': product.stock
+        })
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Error al guardar cambios', 'detail': str(e)}), 500
+
+    return jsonify({
+        'message': f'Factura {invoice_number} procesada',
+        'results': results
+    }), 200
+
+# ─── FIN INTEGRACIÓN FACTURACIÓN ─────────────────────────────────────────────
+
 
 # Configuración de logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
