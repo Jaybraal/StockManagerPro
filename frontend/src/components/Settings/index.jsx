@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { Settings as SettingsIcon, Save, Shield, Building } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Settings = ({
   config,
   onConfigChange,
   onUpdateAdminCredentials
 }) => {
+  const { role, isSuperAdmin } = useAuth();
+  // Solo el dueño del negocio (administrador) puede cambiar sus propias credenciales.
+  // El superadmin gestiona desde el panel de Negocios. Los empleados (user) no tienen acceso.
+  const canChangeCredentials = role === 'administrador' && !isSuperAdmin;
+
   const [localConfig, setLocalConfig] = useState(config);
   const [saving, setSaving] = useState(false);
 
@@ -123,25 +129,27 @@ const Settings = ({
           </button>
         </div>
 
-        {/* Security Settings */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
-            <Shield size={20} />
-            Seguridad
-          </h3>
+        {/* Security Settings — solo visible para el administrador del negocio */}
+        {canChangeCredentials && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
+              <Shield size={20} />
+              Seguridad
+            </h3>
 
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Administra las credenciales de acceso al sistema.
-          </p>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Administra las credenciales de acceso al sistema.
+            </p>
 
-          <button
-            onClick={() => setShowCredentialsModal(true)}
-            className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center justify-center gap-2"
-          >
-            <Shield size={18} />
-            Cambiar Credenciales
-          </button>
-        </div>
+            <button
+              onClick={() => setShowCredentialsModal(true)}
+              className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center justify-center gap-2"
+            >
+              <Shield size={18} />
+              Cambiar Credenciales
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Credentials Modal */}
