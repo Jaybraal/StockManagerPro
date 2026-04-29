@@ -1503,68 +1503,57 @@ def delete_category(tenant_id, category_id):
 @app.route('/api/users/<int:tenant_id>/<int:user_id>/change-credentials', methods=['POST'])
 @jwt_required()
 def change_credentials(tenant_id, user_id):
-    # Obtener la identidad del token. Ahora es una cadena (el user_id).
-    current_user_id_str = get_jwt_identity()
-
-    # Convertir la identidad de cadena a entero
+    """
+    Usado en el flujo must_change_password del login.
+    Solo accesible por administrador (cambiando sus propias credenciales)
+    o superadmin (cambiando cualquier usuario).
+    Los empleados NO pueden cambiar sus propias credenciales.
+    """
     try:
-        current_user_id = int(current_user_id_str)
+        current_user_id = int(get_jwt_identity())
     except ValueError:
         return jsonify({"message": "Invalid user ID in token"}), 403
 
-    # Buscar el objeto de usuario actual basado en el ID del token
     current_user = db.session.get(User, current_user_id)
-
     if not current_user:
         return jsonify({"message": "User specified in token not found"}), 404
 
-    # Verificar si el usuario del token es el mismo que se está intentando modificar
-    # y si pertenece al tenant especificado en la URL.
-    # Usar el user_id obtenido del token (current_user_id) para la comparación
-    # y el tenant_id del objeto current_user
-    if current_user_id != user_id or current_user.tenant_id != tenant_id:
-        return jsonify({"message": "Forbidden: You can only change your own credentials within your tenant"}), 403
+    is_superadmin = current_user.role == 'superadmin'
+    is_admin = current_user.role == 'administrador'
+
+    # Solo admin (cambiando sus propias credenciales) o superadmin pueden usar esta ruta
+    if not is_superadmin and not is_admin:
+        return jsonify({"message": "Solo el administrador o superadmin puede cambiar credenciales"}), 403
+
+    # Admin solo puede cambiar sus propias credenciales aquí
+    if is_admin and (current_user_id != user_id or current_user.tenant_id != tenant_id):
+        return jsonify({"message": "Solo puedes cambiar tus propias credenciales"}), 403
+
+    user_to_change = db.session.get(User, user_id)
+    if not user_to_change or user_to_change.tenant_id != tenant_id:
+        return jsonify({"message": "Usuario no encontrado"}), 404
 
     data = request.get_json()
-    new_username = data.get('new_username')
-    new_password = data.get('new_password')
+    new_username = data.get('new_username', '').strip()
+    new_password = data.get('new_password', '').strip()
 
     if not new_username or not new_password:
         return jsonify({"message": "Nuevo usuario y nueva contraseña son requeridos"}), 400
 
-    # Buscar el usuario que se va a modificar (debe ser el mismo que el current_user)
-    user_to_change = db.session.get(User, user_id)
-    
-    if not user_to_change or user_to_change.tenant_id != tenant_id or user_to_change.id != current_user_id:
-         # This check should ideally not be reached if the previous check passes,
-         # but added for safety.
-        return jsonify({"message": "User not found or mismatch"}), 404
+    if len(new_password) < 6:
+        return jsonify({"message": "La contraseña debe tener al menos 6 caracteres"}), 400
 
-
-    # Validar si el nuevo nombre de usuario ya existe en el mismo tenant (excepto si es el mismo usuario)
-    existing_user = User.query.filter(User.tenant_id == tenant_id, User.username == new_username, User.id != user_to_change.id).first()
-    if existing_user:
-        return jsonify({"message": f"El nombre de usuario '{new_username}' ya existe en este tenant."}), 400
-
-    # Aquí puedes añadir más validaciones para la contraseña (longitud, complejidad, etc.)
-    # Flask-SQLAlchemy no maneja esto automáticamente, debes hacerlo manualmente.
-    if len(new_password) < 6: # Ejemplo de validación simple
-         return jsonify({"message": "La contraseña debe tener al menos 6 caracteres."}), 400
+    existing = User.query.filter(
+        User.tenant_id == tenant_id,
+        User.username == new_username,
+        User.id != user_to_change.id
+    ).first()
+    if existing:
+        return jsonify({"message": f"El usuario '{new_username}' ya existe en este negocio"}), 400
 
     user_to_change.username = new_username
-    user_to_change.set_password(new_password) # Asegúrate de usar el método para hashear
-    user_to_change.must_change_password = False # Una vez cambiadas, ya no necesita cambiarlas
-    
-    # Asegurarse de que el rol no pueda ser cambiado a través de esta ruta si es administrador
-    # Si el usuario es un administrador, mantener el rol de administrador.
-    # Si no es administrador, el rol no se cambia en esta ruta.
-    # if user_to_change.role != 'admin':
-    #     # Si necesitas permitir cambiar roles para no-admins, añade lógica aquí
-    #     pass # No se cambia el rol
-    
-    # Asegurarse de que solo el propio usuario pueda cambiar sus credenciales
-    # Esta verificación ya está cubierta arriba con current_user_id == user_id
-
+    user_to_change.set_password(new_password)
+    user_to_change.must_change_password = False
     db.session.commit()
 
     return jsonify({"message": "Credenciales actualizadas exitosamente"}), 200
