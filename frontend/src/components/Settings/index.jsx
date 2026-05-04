@@ -1,29 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Settings as SettingsIcon, Save, Shield, Building, Link, RefreshCw, Copy, Eye, EyeOff } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Building, Link, RefreshCw, Copy, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
-import { billingApi, superadminApi, usersApi } from '../../services/api';
+import { billingApi } from '../../services/api';
 
 const Settings = ({
   config,
   onConfigChange,
-  onUpdateAdminCredentials
 }) => {
   const { role, isSuperAdmin } = useAuth();
-  const canChangeCredentials = role === 'administrador' || isSuperAdmin;
   const tenantId = localStorage.getItem('adminTenantId');
 
   const [localConfig, setLocalConfig] = useState(config);
   const [saving, setSaving] = useState(false);
-
-  // Credenciales
-  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
-  const [credentials, setCredentials] = useState({
-    currentPassword: '',
-    newUsername: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
 
   // Billing integration
   const [billingConfig, setBillingConfig] = useState(null);
@@ -45,8 +34,8 @@ const Settings = ({
   }, [tenantId]);
 
   useEffect(() => {
-    if (canChangeCredentials) fetchBillingConfig();
-  }, [canChangeCredentials, fetchBillingConfig]);
+    if (role === 'administrador' || isSuperAdmin) fetchBillingConfig();
+  }, [role, isSuperAdmin, fetchBillingConfig]);
 
   const handleConfigChange = (key, value) => {
     setLocalConfig(prev => ({ ...prev, [key]: value }));
@@ -58,39 +47,6 @@ const Settings = ({
       await onConfigChange(localConfig);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleCredentialsChange = (e) => {
-    const { name, value } = e.target;
-    setCredentials(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCredentialsSubmit = async (e) => {
-    e.preventDefault();
-    if (credentials.newPassword !== credentials.confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
-      return;
-    }
-    try {
-      if (isSuperAdmin) {
-        await superadminApi.changeOwnCredentials({
-          current_password: credentials.currentPassword,
-          new_username: credentials.newUsername || undefined,
-          new_password: credentials.newPassword
-        });
-      } else {
-        await onUpdateAdminCredentials({
-          current_password: credentials.currentPassword,
-          new_username: credentials.newUsername || undefined,
-          new_password: credentials.newPassword
-        });
-      }
-      toast.success('Credenciales actualizadas. Vuelve a iniciar sesión.');
-      setShowCredentialsModal(false);
-      setCredentials({ currentPassword: '', newUsername: '', newPassword: '', confirmPassword: '' });
-    } catch (error) {
-      toast.error(error.message || 'Error al actualizar credenciales');
     }
   };
 
@@ -171,28 +127,6 @@ const Settings = ({
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>
-
-        {/* Seguridad — admin y superadmin */}
-        {canChangeCredentials && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
-              <Shield size={20} />
-              Seguridad
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              {isSuperAdmin
-                ? 'Cambia tus credenciales de superadministrador.'
-                : 'Cambia tus credenciales de acceso al sistema.'}
-            </p>
-            <button
-              onClick={() => setShowCredentialsModal(true)}
-              className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center justify-center gap-2"
-            >
-              <Shield size={18} />
-              Cambiar mis Credenciales
-            </button>
-          </div>
-        )}
 
         {/* Integración con sistemas de facturación */}
         {(role === 'administrador' || isSuperAdmin) && (
@@ -306,94 +240,6 @@ Body:
         )}
       </div>
 
-      {/* Modal de cambio de credenciales */}
-      {showCredentialsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <Shield size={24} />
-              Cambiar mis Credenciales
-            </h3>
-
-            <form onSubmit={handleCredentialsSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Contraseña Actual *
-                </label>
-                <input
-                  type="password"
-                  name="currentPassword"
-                  value={credentials.currentPassword}
-                  onChange={handleCredentialsChange}
-                  required
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nuevo Usuario (opcional)
-                </label>
-                <input
-                  type="text"
-                  name="newUsername"
-                  value={credentials.newUsername}
-                  onChange={handleCredentialsChange}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nueva Contraseña *
-                </label>
-                <input
-                  type="password"
-                  name="newPassword"
-                  value={credentials.newPassword}
-                  onChange={handleCredentialsChange}
-                  required
-                  minLength={6}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Confirmar Contraseña *
-                </label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={credentials.confirmPassword}
-                  onChange={handleCredentialsChange}
-                  required
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCredentialsModal(false);
-                    setCredentials({ currentPassword: '', newUsername: '', newPassword: '', confirmPassword: '' });
-                  }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Guardar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

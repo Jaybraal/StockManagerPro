@@ -213,7 +213,6 @@ export default function AdminPanel() {
           <Settings
             config={config}
             onConfigChange={updateConfig}
-            onUpdateAdminCredentials={updateAdminCredentials}
           />
         );
 
